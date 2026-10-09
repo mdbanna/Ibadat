@@ -1,0 +1,33 @@
+/* IBADAT design tokens. Use these (bg-forest, text-ink, border-line ...) instead of raw hex values. */
+@theme {
+  --color-forest: #075B48;       /* primary */
+  --color-forest-deep: #064638;  /* hover / pressed / dark surfaces */
+  --color-leaf: #7DAF36;         /* secondary accent */
+  --color-gold: #D7AC3F;         /* sparing highlight and selected states only */
+  --color-background: #F7F8F4;
+  --color-surface: #FFFFFF;
+  --color-ink: #18251F;
+  --color-muted: #68756E;
+  --color-line: #E5EAE5;
+  --color-danger: #B3261E;
+  --color-danger-soft: #FCEDEB;
+  --color-forest-soft: #E6F0EC;
+  --color-leaf-soft: #EFF5E4;
+  --color-gold-soft: #FBF3DD;
+
+  --font-sans: "Plus Jakarta Sans Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif;
+
+  /* Fluid type scale (mobile 360px -> desktop 1200px) */
+  --text-display: clamp(2rem, 1.4rem + 2.6vw, 3.5rem);
+  --text-h1: clamp(1.75rem, 1.3rem + 1.9vw, 2.75rem);
+  --text-h2: clamp(1.4rem, 1.1rem + 1.2vw, 2rem);
+  --text-h3: clamp(1.15rem, 1rem + 0.6vw, 1.4rem);
+
+  --radius-card: 0.875rem;
+  --shadow-card: 0 1px 2px rgb(24 37 31 / 0.05), 0 2px 8px rgb(24 37 31 / 0.04);
+  --shadow-overlay: 0 12px 32px rgb(24 37 31 / 0.18);
+
+  /* Breakpoints: 360 mobile baseline (default), 768 tablet, 1200 desktop */
+  --breakpoint-md: 48rem;
+  --breakpoint-xl: 75rem;
+}

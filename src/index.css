@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource/hind-siliguri/bengali-400.css";
+@import "@fontsource/hind-siliguri/bengali-500.css";
+@import "@fontsource/hind-siliguri/bengali-600.css";
+@import "@fontsource/hind-siliguri/bengali-700.css";
+@import "./styles/tokens.css";
+
+@layer base {
+  html { background: var(--color-background); color: var(--color-ink); -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-width: 360px; font-family: var(--font-sans); line-height: 1.6; }
+  /* Bengali needs more vertical room for matras and conjuncts than Latin text. */
+  html[lang="bn"] body { line-height: 1.8; }
+  html[lang="bn"] h1, html[lang="bn"] h2, html[lang="bn"] h3 { line-height: 1.4; letter-spacing: 0; }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; color: var(--color-ink); }
+  :focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; border-radius: 4px; }
+  img { max-width: 100%; height: auto; }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+}
