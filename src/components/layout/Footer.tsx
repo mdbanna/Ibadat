@@ -9,9 +9,9 @@ export function Footer() {
     <footer className="mt-auto bg-forest-deep text-white">
       <PageContainer className="grid gap-8 py-10 md:grid-cols-[1.5fr_1fr]">
         <div className="flex flex-col gap-2">
-          <p className="text-lg font-bold">{t('brand.name')}</p>
-          <p className="text-white/85">{t('brand.fullName')}</p>
-          <p className="text-sm text-white/80">{t('brand.established')}</p>
+          <Link to="/" aria-label={t('brand.name')} className="inline-block self-start rounded-md bg-white p-2">
+            <img src="/brand/ibadat-logo.png" alt={t('brand.fullName')} className="block h-auto w-56" />
+          </Link>
           <p className="mt-2 border-s-2 border-gold ps-3 text-sm text-white/90">{t('footer.contributionsNote')}</p>
         </div>
         <nav aria-label={t('footer.explore')}>

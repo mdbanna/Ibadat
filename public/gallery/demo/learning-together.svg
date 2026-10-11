@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="49" x2="1100" y2="855" gradientUnits="userSpaceOnUse"><stop stop-color="#E5F0E1"/><stop offset="1" stop-color="#F8ECD4"/></linearGradient>
+    <linearGradient id="book" x1="434" y1="562" x2="780" y2="747" gradientUnits="userSpaceOnUse"><stop stop-color="#075B48"/><stop offset="1" stop-color="#0A4C3E"/></linearGradient>
+  </defs>
+  <path fill="url(#bg)" d="M0 0h1200v900H0z"/>
+  <circle cx="1001" cy="185" r="148" fill="#D7AC3F" fill-opacity=".16"/>
+  <path d="M0 631c188-72 353-47 512 5 223 73 431 27 688-72v336H0V631Z" fill="#D5E6CF"/>
+  <path d="M170 657c0-163 51-259 148-259s148 96 148 259" fill="#7DAF36" fill-opacity=".2"/>
+  <path d="M292 666V291" stroke="#986F3A" stroke-linecap="round" stroke-width="27"/>
+  <circle cx="292" cy="254" r="102" fill="#7DAF36"/>
+  <path d="M222 258c35-77 86-104 151-80 26 10 48 30 64 58-81-22-151-9-215 40Z" fill="#5F962F"/>
+  <circle cx="462" cy="374" r="45" fill="#C98461"/>
+  <path d="M416 373c3-41 20-61 50-61 28 0 46 20 46 62l-43-21-53 20Z" fill="#173F38"/>
+  <path d="M363 609c8-116 42-180 99-180 60 0 91 63 102 180H363Z" fill="#075B48"/>
+  <circle cx="718" cy="345" r="47" fill="#D89B71"/>
+  <path d="M670 343c2-44 20-65 50-65 31 0 48 22 48 65l-45-22-53 22Z" fill="#263D37"/>
+  <path d="M656 594c8-128 30-192 69-192 43 0 69 67 79 192H656Z" fill="#D7AC3F"/>
+  <circle cx="956" cy="381" r="46" fill="#C98461"/>
+  <path d="M909 379c2-44 18-67 49-67 29 0 47 24 47 67l-44-23-52 23Z" fill="#173F38"/>
+  <path d="M881 614c10-133 34-204 75-204 45 0 72 70 82 204H881Z" fill="#7DAF36"/>
+  <path d="M438 616h371v123H438z" fill="url(#book)"/>
+  <path d="M621 619v119" stroke="#D7AC3F" stroke-width="8"/>
+  <path d="M474 654h111m-111 31h91m114-31h107m-107 31h83" stroke="#fff" stroke-opacity=".82" stroke-linecap="round" stroke-width="9"/>
+  <path d="m386 515 77 85m354-68-56 66" stroke="#C98461" stroke-linecap="round" stroke-width="20"/>
+  <rect x="76" y="72" width="272" height="54" rx="27" fill="#fff" fill-opacity=".8"/>
+  <circle cx="109" cy="99" r="9" fill="#D7AC3F"/>
+  <text x="132" y="107" fill="#075B48" font-family="Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2">DEMO ILLUSTRATION</text>
+</svg>

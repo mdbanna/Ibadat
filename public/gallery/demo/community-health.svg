@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="94" y1="57" x2="1015" y2="872" gradientUnits="userSpaceOnUse"><stop stop-color="#E6F3EF"/><stop offset="1" stop-color="#F7F1DE"/></linearGradient>
+    <linearGradient id="coat" x1="387" y1="398" x2="602" y2="759" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#DDECE5"/></linearGradient>
+  </defs>
+  <path fill="url(#bg)" d="M0 0h1200v900H0z"/>
+  <circle cx="972" cy="202" r="147" fill="#7DAF36" fill-opacity=".12"/>
+  <circle cx="218" cy="740" r="178" fill="#D7AC3F" fill-opacity=".15"/>
+  <path d="M0 690c176-72 325-66 492-22 232 61 435 31 708-62v294H0V690Z" fill="#D2E5D6"/>
+  <rect x="820" y="284" width="222" height="375" rx="22" fill="#fff" fill-opacity=".7"/>
+  <rect x="850" y="316" width="162" height="15" rx="7.5" fill="#DDECE5"/>
+  <rect x="850" y="354" width="118" height="15" rx="7.5" fill="#DDECE5"/>
+  <path d="M936 526c0-45 26-71 60-71s60 26 60 71" stroke="#7DAF36" stroke-width="16" stroke-linecap="round"/>
+  <path d="M940 548h111v78H940z" fill="#E8F2DF"/>
+  <circle cx="437" cy="322" r="61" fill="#D89B71"/>
+  <path d="M375 319c2-58 26-88 64-88 39 0 66 30 65 89l-57-33-72 32Z" fill="#173F38"/>
+  <path d="M304 715c13-183 58-279 134-279 83 0 123 99 137 279H304Z" fill="url(#coat)"/>
+  <path d="m393 460 44 65 43-65" fill="#075B48"/>
+  <path d="M425 526h26v151h-26z" fill="#D7AC3F"/>
+  <rect x="468" y="528" width="104" height="81" rx="17" fill="#075B48"/>
+  <path d="M520 546v45m-22-22h45" stroke="#fff" stroke-linecap="round" stroke-width="10"/>
+  <circle cx="730" cy="368" r="62" fill="#C98461"/>
+  <path d="M666 365c6-56 26-81 67-81 39 0 59 26 59 82l-58-27-68 26Z" fill="#263D37"/>
+  <path d="M600 715c12-176 58-267 132-267 81 0 122 93 137 267H600Z" fill="#7DAF36"/>
+  <path d="m564 579 95 30" stroke="#C98461" stroke-linecap="round" stroke-width="23"/>
+  <path d="M574 571h42v71h-42z" rx="10" fill="#fff" stroke="#075B48" stroke-width="8"/>
+  <path d="M592 583v42m-12-21h25" stroke="#D7AC3F" stroke-linecap="round" stroke-width="5"/>
+  <rect x="76" y="72" width="272" height="54" rx="27" fill="#fff" fill-opacity=".8"/>
+  <circle cx="109" cy="99" r="9" fill="#D7AC3F"/>
+  <text x="132" y="107" fill="#075B48" font-family="Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2">DEMO ILLUSTRATION</text>
+</svg>
