@@ -8,6 +8,8 @@
   --color-surface: #FFFFFF;
   --color-ink: #18251F;
   --color-muted: #68756E;
+  /* Darker muted text for tinted surfaces (forest-soft, leaf-soft, line): --color-muted is only 3.95-4.3:1 there, below AA. */
+  --color-muted-strong: #4F5C55;
   --color-line: #E5EAE5;
   --color-danger: #B3261E;
   --color-danger-soft: #FCEDEB;

@@ -25,7 +25,7 @@ export function DesignSystemPage() {
   const statuses: StatusKey[] = ['pending', 'submitted', 'underReview', 'verified', 'approved', 'rejected', 'reversed', 'active', 'suspended', 'draft', 'published', 'archived']
 
   return (
-    <PageContainer className="flex flex-col gap-10">
+    <PageContainer className="flex flex-col gap-10 py-8 md:py-12">
       <SectionHeading level={1} title={t('foundation.title')} description={t('foundation.intro')} />
 
       <section className="flex flex-col gap-4" aria-labelledby="ds-type">

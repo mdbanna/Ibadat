@@ -249,6 +249,49 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string | null
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          message: string
+          name: string
+          phone: string | null
+          preferred_language: string
+          status: Database["public"]["Enums"]["message_status"]
+          subject: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          email?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message: string
+          name: string
+          phone?: string | null
+          preferred_language?: string
+          status?: Database["public"]["Enums"]["message_status"]
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message?: string
+          name?: string
+          phone?: string | null
+          preferred_language?: string
+          status?: Database["public"]["Enums"]["message_status"]
+          subject?: string | null
+        }
+        Relationships: []
+      }
       contributions: {
         Row: {
           amount: number
@@ -854,6 +897,17 @@ export type Database = {
           short_bio: string
         }[]
       }
+      submit_contact_message: {
+        Args: {
+          p_email: string
+          p_message: string
+          p_name: string
+          p_phone: string
+          p_preferred_language: string
+          p_subject: string
+        }
+        Returns: undefined
+      }
       submit_membership_application: {
         Args: {
           p_address_line: string
@@ -904,6 +958,7 @@ export type Database = {
         | "adjustment"
         | "reversal"
       membership_status: "pending" | "active" | "suspended" | "resigned"
+      message_status: "new" | "read" | "archived"
       payment_method:
         | "cash"
         | "bkash"
@@ -1082,6 +1137,7 @@ export const Constants = {
         "reversal",
       ],
       membership_status: ["pending", "active", "suspended", "resigned"],
+      message_status: ["new", "read", "archived"],
       payment_method: [
         "cash",
         "bkash",

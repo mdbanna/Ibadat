@@ -1,36 +1,46 @@
-import { useState } from 'react'
-import { NavLink, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Logo } from './Logo'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { PageContainer } from './PageContainer'
+import { ButtonLink } from '../ui'
 import { cx } from '../../lib/cx'
-
-/** Only routes that exist today are linked. Add the others as their pages are built in later phases. */
-const links = [{ to: '/', key: 'nav.home' as const, end: true }]
+import { JOIN_PATH, NAV_ITEMS } from '../../routes'
 
 export function Header() {
   const { t } = useTranslation()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cx('block rounded-lg px-3 py-2.5 font-semibold transition-colors', isActive ? 'bg-forest-soft text-forest' : 'text-ink hover:bg-forest-soft hover:text-forest')
 
+  // close the mobile menu after navigating, and on Escape
+  useEffect(() => setOpen(false), [pathname])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
       <PageContainer className="flex min-h-16 items-center justify-between gap-3">
-        <Link to="/" aria-label={t('brand.name')} onClick={() => setOpen(false)}><Logo /></Link>
-        <nav aria-label={t('nav.primary')} className="hidden md:block">
+        <Link to="/" aria-label={t('brand.name')}><Logo /></Link>
+        <nav aria-label={t('nav.primary')} className="hidden xl:block">
           <ul className="flex items-center gap-1">
-            {links.map((l) => (
+            {NAV_ITEMS.map((l) => (
               <li key={l.to}><NavLink to={l.to} end={l.end} className={linkClass}>{t(l.key)}</NavLink></li>
             ))}
           </ul>
         </nav>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          <ButtonLink to={JOIN_PATH} size="sm" className="hidden xl:inline-flex">{t('nav.join')}</ButtonLink>
           <button
             type="button"
-            className="grid size-11 place-items-center rounded-lg text-forest hover:bg-forest-soft md:hidden"
+            className="grid size-11 place-items-center rounded-lg text-forest hover:bg-forest-soft xl:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? t('nav.closeMenu') : t('nav.openMenu')}
@@ -43,11 +53,14 @@ export function Header() {
         </div>
       </PageContainer>
       {open && (
-        <nav id="mobile-nav" aria-label={t('nav.primary')} className="border-t border-line bg-surface md:hidden">
-          <PageContainer as="ul" className="flex flex-col gap-1 py-3">
-            {links.map((l) => (
-              <li key={l.to}><NavLink to={l.to} end={l.end} className={linkClass} onClick={() => setOpen(false)}>{t(l.key)}</NavLink></li>
-            ))}
+        <nav id="mobile-nav" aria-label={t('nav.primary')} className="border-t border-line bg-surface xl:hidden">
+          <PageContainer className="flex flex-col gap-3 py-3">
+            <ul className="flex flex-col gap-1">
+              {NAV_ITEMS.map((l) => (
+                <li key={l.to}><NavLink to={l.to} end={l.end} className={linkClass}>{t(l.key)}</NavLink></li>
+              ))}
+            </ul>
+            <ButtonLink to={JOIN_PATH} fullWidth>{t('nav.join')}</ButtonLink>
           </PageContainer>
         </nav>
       )}

@@ -7,10 +7,11 @@ interface ModalProps {
   title: string
   children: ReactNode
   footer?: ReactNode
+  wide?: boolean
 }
 
 /** Built on the native <dialog>: focus trapping, Esc to close and inert background come from the browser. */
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, wide }: ModalProps) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -28,7 +29,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose() }}
-      className="m-auto w-[min(32rem,calc(100%-2rem))] rounded-(--radius-card) border border-line bg-surface p-0 text-ink shadow-(--shadow-overlay) backdrop:bg-ink/50"
+      className={`m-auto ${wide ? 'w-[min(56rem,calc(100%-1.5rem))]' : 'w-[min(32rem,calc(100%-2rem))]'} max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-(--radius-card) border border-line bg-surface p-0 text-ink shadow-(--shadow-overlay) backdrop:bg-ink/50`}
     >
       <div className="flex flex-col gap-4 p-5 md:p-6">
         <div className="flex items-start justify-between gap-4">

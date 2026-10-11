@@ -1,4 +1,4 @@
--- Removes everything created by the six Phase 1 migrations. DESTRUCTIVE: deletes all data in these tables.
+-- Removes everything created by the Phase 1 migrations and the Phase 2 migration (public site). DESTRUCTIVE: deletes all data in these tables.
 -- Only safe while the database holds nothing you need. Run in the SQL editor as postgres.
 -- Storage buckets are NOT removed here: Supabase blocks direct deletes on storage tables. Empty and delete the five buckets
 -- (gallery, member-photos, documents, beneficiary-files, payment-receipts) in the dashboard or via the Storage API.
@@ -21,6 +21,7 @@ drop policy if exists storage_receipts_read on storage.objects;
 drop policy if exists storage_receipts_insert on storage.objects;
 
 drop view if exists public.fund_balances;
+drop table if exists public.contact_messages cascade;
 drop table if exists
   public.monthly_report_fund_lines, public.monthly_reports, public.audit_logs, public.documents, public.announcements,
   public.gallery_images, public.activities, public.employment_projects, public.assistance_records, public.beneficiaries,
@@ -28,6 +29,7 @@ drop table if exists
   cascade;
 
 drop function if exists
+  public.submit_contact_message(text, text, text, text, text, text), public.stamp_contact_message_handling(),
   public.is_public_member_photo(text), public.list_public_member_profiles(int, int),
   public.submit_membership_application(text, text, text, date, text, text, text, text, text, text, boolean),
   public.has_role(public.app_role), public.is_staff(), public.is_active_member(), public.generate_member_id(),
@@ -38,7 +40,7 @@ drop function if exists
 drop sequence if exists public.member_id_seq, public.application_ref_seq, public.case_ref_seq, public.project_ref_seq;
 
 drop type if exists
-  public.app_role, public.membership_status, public.application_status, public.contribution_status, public.payment_method,
+  public.message_status, public.app_role, public.membership_status, public.application_status, public.contribution_status, public.payment_method,
   public.fund_type, public.ledger_transaction_type, public.ledger_direction, public.approval_status, public.review_status,
   public.eligibility_status, public.consent_status, public.assistance_status, public.privacy_level, public.project_status,
   public.follow_up_status, public.publication_status, public.audience_type, public.document_access, public.document_type;

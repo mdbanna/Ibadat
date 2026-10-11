@@ -12,7 +12,7 @@ const tones: Record<Tone, string> = {
   info: 'bg-leaf-soft text-forest-deep',
   warning: 'bg-gold-soft text-ink',
   danger: 'bg-danger-soft text-danger',
-  neutral: 'bg-line text-muted',
+  neutral: 'bg-line text-muted-strong',
 }
 
 const statusTone: Record<StatusKey, Tone> = {

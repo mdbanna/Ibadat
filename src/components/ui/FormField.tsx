@@ -51,3 +51,35 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
 export function Textarea({ className, rows = 4, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea rows={rows} className={cx(controlClass(rest['aria-invalid'] === true), className)} {...rest} />
 }
+
+interface CheckboxFieldProps {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  error?: string
+  name?: string
+}
+
+/** Checkbox with the label beside it (not above), wired to its error message for screen readers. */
+export function CheckboxField({ label, checked, onChange, error, name }: CheckboxFieldProps) {
+  const id = useId()
+  const errorId = `${id}-error`
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-start gap-3">
+        <input
+          id={id}
+          name={name}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className="mt-1 size-5 shrink-0 accent-forest"
+        />
+        <label htmlFor={id} className="text-base text-ink">{label}</label>
+      </div>
+      {error && <p id={errorId} role="alert" className="text-sm font-medium text-danger">{error}</p>}
+    </div>
+  )
+}

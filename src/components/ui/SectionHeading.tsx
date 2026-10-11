@@ -15,9 +15,9 @@ export function SectionHeading({ title, eyebrow, description, level = 2, align =
   const Tag = `h${level}` as const
   return (
     <div className={cx('flex max-w-2xl flex-col gap-2', align === 'center' && 'mx-auto items-center text-center')}>
-      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-leaf">{eyebrow}</p>}
+      {eyebrow && <p className="text-sm font-semibold uppercase tracking-wide text-forest">{eyebrow}</p>}
       <Tag className={cx('font-bold', sizes[level])}>{title}</Tag>
-      {description && <p className="text-base text-muted md:text-lg">{description}</p>}
+      {description && <p className="text-base text-muted-strong md:text-lg">{description}</p>}
     </div>
   )
 }
