@@ -271,7 +271,7 @@ export const en: Messages = {
     title: 'Our members',
     lead: 'IBADAT is a member-funded organization. Our members are our strength.',
     directoryTitle: 'Meet our members',
-    directoryNote: 'Member profiles appear here with consent and administrator approval. Clearly marked demo profiles are fictional sample content.',
+    directoryNote: 'Only members who chose to be shown and were approved by an administrator appear here.',
     empty: 'No member profiles have been published yet',
     emptyHint: 'Profiles appear here once a member consents and an administrator approves.',
     joinTitle: 'How to become a member',

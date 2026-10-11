@@ -12,11 +12,6 @@ export async function getSignedUrls(bucket: string, paths: string[]): Promise<Re
   const result: Record<string, string> = {}
   const missing: string[] = []
   for (const path of new Set(paths.filter(Boolean))) {
-    // Demo gallery illustrations are shipped with the site, not stored in the private user-image bucket.
-    if (bucket === 'gallery' && path.startsWith('static:gallery/')) {
-      result[path] = `/${path.slice('static:'.length)}`
-      continue
-    }
     const hit = cache.get(`${bucket}/${path}`)
     if (hit && hit.expires > now + 60_000) result[path] = hit.url
     else missing.push(path)
