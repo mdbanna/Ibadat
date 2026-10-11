@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-/** Header crop of the supplied IBADAT wordmark. The complete mark appears in the footer. */
+/** Supplied IBADAT wordmark used in the site header. */
 export function Logo() {
   const { t } = useTranslation()
   return (
