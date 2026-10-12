@@ -36,3 +36,36 @@ export async function signInWithMemberId(memberId: string, password: string): Pr
     return { ok: false, reason: e instanceof Error && e.message === 'supabase_not_configured' ? 'not_configured' : 'network' }
   }
 }
+
+export type ChangePasswordResult = { ok: true } | { ok: false; reason: 'wrong_current' | 'failed' | 'not_configured' }
+
+/**
+ * Changing a password re-checks the CURRENT password with Supabase Auth first (so a left-open browser cannot change it),
+ * then updates it and ends every other session. Not yet verified against a live Auth server: no accounts exist.
+ */
+export async function changePassword(memberId: string, currentPassword: string, newPassword: string): Promise<ChangePasswordResult> {
+  const domain = import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN
+  const email = domain ? memberIdToAuthEmail(memberId, domain) : null
+  if (!email) return { ok: false, reason: 'not_configured' }
+  try {
+    const client = requireSupabase()
+    const check = await client.auth.signInWithPassword({ email, password: currentPassword })
+    if (check.error) return { ok: false, reason: check.error.status === 400 || check.error.status === 401 ? 'wrong_current' : 'failed' }
+    const { error } = await client.auth.updateUser({ password: newPassword })
+    if (error) return { ok: false, reason: 'failed' }
+    await client.auth.signOut({ scope: 'others' })
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error && e.message === 'supabase_not_configured' ? 'not_configured' : 'failed' }
+  }
+}
+
+/** Ends the member's sessions on every other device. */
+export async function signOutOtherDevices(): Promise<boolean> {
+  try {
+    const { error } = await requireSupabase().auth.signOut({ scope: 'others' })
+    return !error
+  } catch {
+    return false
+  }
+}

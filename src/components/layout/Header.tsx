@@ -6,11 +6,14 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { PageContainer } from './PageContainer'
 import { ButtonLink } from '../ui'
 import { cx } from '../../lib/cx'
-import { JOIN_PATH, NAV_ITEMS } from '../../routes'
+import { JOIN_PATH, LOGIN_PATH, NAV_ITEMS } from '../../routes'
+import { useAuth } from '../../lib/auth'
 
 export function Header() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
+  const auth = useAuth()
+  const signedIn = auth.status === 'ready' && auth.access === 'active'
   const [open, setOpen] = useState(false)
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cx('block rounded-lg px-3 py-2.5 font-semibold transition-colors', isActive ? 'bg-forest-soft text-forest' : 'text-ink hover:bg-forest-soft hover:text-forest')
@@ -37,7 +40,18 @@ export function Header() {
         </nav>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
-          <ButtonLink to={JOIN_PATH} size="sm" className="hidden xl:inline-flex">{t('nav.join')}</ButtonLink>
+          {/* Desktop-only actions live in a wrapper that is hidden below 1200px. (Putting `hidden` on the link itself does not
+              work: the button's own `inline-flex` class wins the cascade. Found by the real-browser test at 360px.) */}
+          <div className="hidden items-center gap-2 xl:flex">
+            {signedIn
+              ? <ButtonLink to="/dashboard" size="sm">{t('nav.dashboard')}</ButtonLink>
+              : (
+                <>
+                  <ButtonLink to={LOGIN_PATH} variant="secondary" size="sm">{t('nav.login')}</ButtonLink>
+                  <ButtonLink to={JOIN_PATH} size="sm">{t('nav.join')}</ButtonLink>
+                </>
+              )}
+          </div>
           <button
             type="button"
             className="grid size-11 place-items-center rounded-lg text-forest hover:bg-forest-soft xl:hidden"
@@ -60,7 +74,14 @@ export function Header() {
                 <li key={l.to}><NavLink to={l.to} end={l.end} className={linkClass}>{t(l.key)}</NavLink></li>
               ))}
             </ul>
-            <ButtonLink to={JOIN_PATH} fullWidth>{t('nav.join')}</ButtonLink>
+            {signedIn
+              ? <ButtonLink to="/dashboard" fullWidth>{t('nav.dashboard')}</ButtonLink>
+              : (
+                <div className="flex flex-col gap-2">
+                  <ButtonLink to={LOGIN_PATH} variant="secondary" fullWidth>{t('nav.login')}</ButtonLink>
+                  <ButtonLink to={JOIN_PATH} fullWidth>{t('nav.join')}</ButtonLink>
+                </div>
+              )}
           </PageContainer>
         </nav>
       )}

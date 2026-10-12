@@ -33,10 +33,11 @@ create function tt.n(q text) returns bigint language plpgsql as $$
 declare v bigint; begin execute 'select count(*) from (' || q || ') s' into v; return v; end $$;
 
 -- ---------------------------------------------------------------- fixtures (superuser)
+-- Auth emails follow the production mapping (member id lower-cased @ domain); profiles below get IBD-0001..0006 in order.
 insert into auth.users (id, email) values
-  ('00000000-0000-0000-0000-0000000000a1', 'admin@t'), ('00000000-0000-0000-0000-0000000000b1', 'treasurer@t'),
-  ('00000000-0000-0000-0000-0000000000c1', 'editor@t'), ('00000000-0000-0000-0000-000000000011', 'm1@t'),
-  ('00000000-0000-0000-0000-000000000022', 'm2@t'),     ('00000000-0000-0000-0000-000000000033', 'pending@t');
+  ('00000000-0000-0000-0000-0000000000a1', 'ibd-0001@members.test'), ('00000000-0000-0000-0000-0000000000b1', 'ibd-0002@members.test'),
+  ('00000000-0000-0000-0000-0000000000c1', 'ibd-0003@members.test'), ('00000000-0000-0000-0000-000000000011', 'ibd-0004@members.test'),
+  ('00000000-0000-0000-0000-000000000022', 'ibd-0005@members.test'), ('00000000-0000-0000-0000-000000000033', 'ibd-0006@members.test');
 insert into public.profiles (id, full_name, membership_status, membership_start_date, public_profile_preference) values
   ('00000000-0000-0000-0000-0000000000a1', 'Admin User',     'active', '2026-01-01', false),
   ('00000000-0000-0000-0000-0000000000b1', 'Treasurer User', 'active', '2026-01-01', false),
@@ -102,7 +103,7 @@ begin
   perform tt.denied($q$update public.profiles set membership_status = 'suspended' where id = auth.uid()$q$,
                     'protected_profile_column', 'member cannot change membership_status');
   perform tt.denied($q$update public.profiles set member_id = 'IBD-9999' where id = auth.uid()$q$,
-                    'protected_profile_column', 'member cannot change member_id');
+                    'member_id_must_match_auth_account', 'member cannot change member_id (binding trigger fires before the column guard)');
   update public.profiles set short_bio = 'Hello' where id = auth.uid();
   perform tt.ok((select short_bio from public.profiles where id = auth.uid()) = 'Hello', 'member can edit own bio');
   perform tt.ok((select public_profile_approved from public.profiles where id = auth.uid()) = false, 'editing public content resets approval');

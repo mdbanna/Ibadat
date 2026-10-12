@@ -880,6 +880,30 @@ export type Database = {
     }
     Functions: {
       generate_member_id: { Args: Record<PropertyKey, never>; Returns: string }
+      get_assistance_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          amounts_suppressed: boolean
+          cases_completed: number
+          cases_in_progress: number
+          cases_total: number
+          disbursed_total: number
+          fund_type: Database["public"]["Enums"]["fund_type"]
+        }[]
+      }
+      get_employment_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          actual_expense_total: number
+          amounts_suppressed: boolean
+          approved_budget_total: number
+          projects_approved: number
+          projects_completed: number
+          projects_in_progress: number
+          projects_planned: number
+          projects_total: number
+        }[]
+      }
       has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean

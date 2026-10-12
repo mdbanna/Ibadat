@@ -24,12 +24,12 @@ import JoinPage from './JoinPage'
 import MembersPage from './MembersPage'
 
 const activities = [
-  { id: 'a1', slug: 'food-relief', title_bn: 'খাদ্য সহায়তা', title_en: 'Food relief', description_bn: 'বিবরণ', description_en: 'Details', activity_date: '2026-09-01', general_location: 'Dhaka', cover_image_path: 'covers/a1.jpg' },
-  { id: 'a2', slug: 'bn-only', title_bn: 'শুধু বাংলা শিরোনাম', title_en: null, description_bn: null, description_en: null, activity_date: null, general_location: null, cover_image_path: null },
+  { id: 'a1', slug: 'food-relief', title_bn: 'খাদ্য সহায়তা', title_en: 'Food relief', description_bn: 'বিবরণ', description_en: 'Details', activity_date: '2026-09-01', general_location: 'Dhaka', cover_image_path: 'covers/a1.jpg', publication_status: 'published' },
+  { id: 'a2', slug: 'bn-only', title_bn: 'শুধু বাংলা শিরোনাম', title_en: null, description_bn: null, description_en: null, activity_date: null, general_location: null, cover_image_path: null, publication_status: 'published' },
 ]
 const gallery = [
-  { id: 'g1', image_path: 'g/one.jpg', caption_bn: 'ছবি এক', caption_en: 'Photo one', image_date: '2026-09-01', related_activity_id: 'a1' },
-  { id: 'g2', image_path: 'g/two.jpg', caption_bn: null, caption_en: null, image_date: null, related_activity_id: null },
+  { id: 'g1', image_path: 'g/one.jpg', caption_bn: 'ছবি এক', caption_en: 'Photo one', image_date: '2026-09-01', related_activity_id: 'a1', publication_status: 'published', privacy_level: 'public' },
+  { id: 'g2', image_path: 'g/two.jpg', caption_bn: null, caption_en: null, image_date: null, related_activity_id: null, publication_status: 'published', privacy_level: 'public' },
 ]
 const members = [{ id: 'm1', full_name: 'আব্দুল করিম', profile_image_path: null, short_bio: 'শিক্ষক', general_location: 'ঢাকা' }]
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageContainer } from './PageContainer'
-import { JOIN_PATH, NAV_ITEMS } from '../../routes'
+import { JOIN_PATH, LOGIN_PATH, NAV_ITEMS } from '../../routes'
 
 export function Footer() {
   const { t } = useTranslation()
@@ -20,6 +20,7 @@ export function Footer() {
             {NAV_ITEMS.map((l) => (
               <li key={l.to}><Link to={l.to} className="inline-block py-1.5 text-white/90 underline-offset-4 hover:underline">{t(l.key)}</Link></li>
             ))}
+            <li><Link to={LOGIN_PATH} className="inline-block py-1.5 text-white/90 underline-offset-4 hover:underline">{t('nav.login')}</Link></li>
             <li><Link to={JOIN_PATH} className="inline-block py-1.5 font-semibold text-white underline underline-offset-4">{t('nav.join')}</Link></li>
           </ul>
         </nav>

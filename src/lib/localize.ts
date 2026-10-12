@@ -19,3 +19,21 @@ export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? '').slice(0, 2)).toUpperCase()
 }
+
+/** Amounts are Bangladeshi taka. Bengali uses Bengali digits and grouping, English uses the en-BD locale. */
+export function formatMoney(amount: number | null | undefined, lang: Language): string {
+  if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return ''
+  return new Intl.NumberFormat(lang === 'bn' ? 'bn-BD' : 'en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 2 }).format(Number(amount))
+}
+
+/** "March 2026" / "মার্চ ২০২৬" for a first-of-month date string. */
+export function formatMonth(isoDate: string | null | undefined, lang: Language): string {
+  if (!isoDate) return ''
+  const d = new Date(`${isoDate.slice(0, 10)}T00:00:00Z`)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat(lang === 'bn' ? 'bn-BD' : 'en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d)
+}
+
+export function formatNumber(n: number, lang: Language): string {
+  return new Intl.NumberFormat(lang === 'bn' ? 'bn-BD' : 'en-BD').format(n)
+}

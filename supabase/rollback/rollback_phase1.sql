@@ -1,4 +1,5 @@
--- Removes everything created by the Phase 1 migrations and the Phase 2 migration (public site). DESTRUCTIVE: deletes all data in these tables.
+-- Removes everything created by the Phase 1, Phase 2 and Phase 3 migrations. It does NOT remove the user's demo-content
+-- migrations (20261011*), which already undo themselves. DESTRUCTIVE: deletes all data in these tables.
 -- Only safe while the database holds nothing you need. Run in the SQL editor as postgres.
 -- Storage buckets are NOT removed here: Supabase blocks direct deletes on storage tables. Empty and delete the five buckets
 -- (gallery, member-photos, documents, beneficiary-files, payment-receipts) in the dashboard or via the Storage API.
@@ -29,6 +30,7 @@ drop table if exists
   cascade;
 
 drop function if exists
+  public.get_assistance_summary(), public.get_employment_summary(), public.check_member_auth_email(),
   public.submit_contact_message(text, text, text, text, text, text), public.stamp_contact_message_handling(),
   public.is_public_member_photo(text), public.list_public_member_profiles(int, int),
   public.submit_membership_application(text, text, text, date, text, text, text, text, text, text, boolean),
