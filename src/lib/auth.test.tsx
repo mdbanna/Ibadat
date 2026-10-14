@@ -14,11 +14,11 @@ import { AuthProvider, safeNext, useAuth, type AuthContextValue } from './auth'
 
 const UID = '11111111-1111-1111-1111-111111111111'
 const profile = (over: Record<string, unknown> = {}) => ({
-  id: UID, member_id: 'IBD-0001', full_name: 'Test Member', phone: null, email: null, profile_image_path: null, short_bio: null,
+  id: UID, member_id: 'IBD-0001', full_name: 'Test Member', phone: '+8801711111111', email: null, must_change_password: false, profile_image_path: null, short_bio: null,
   general_location: null, membership_status: 'active', membership_start_date: '2026-01-01', public_profile_preference: false,
   public_profile_approved: false, created_at: '2026-01-01T00:00:00Z', ...over,
 })
-const account = { email: 'ibd-0001@members.test', password: 'correct-horse', userId: UID }
+const account = { email: '8801711111111@members.test', password: 'correct-horse', userId: UID }
 
 let ctx: AuthContextValue
 function Probe() { ctx = useAuth(); return <p data-testid="s">{ctx.status}|{ctx.access ?? '-'}|{ctx.notice ?? '-'}</p> }
@@ -70,32 +70,32 @@ describe('AuthProvider: restoring state', () => {
   })
 })
 
-describe('AuthProvider.signIn: Member ID + password against Supabase Auth', () => {
-  it('maps the Member ID to the derived Auth email, verifies the profile and opens access', async () => {
+describe('AuthProvider.signIn: phone number + password against Supabase Auth', () => {
+  it('maps the phone number to the derived Auth email, verifies the profile and opens access', async () => {
     const { fakeAuth } = mount()
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('  ibd-0001 ', 'correct-horse') })
-    expect(out).toEqual({ ok: true, access: 'active' })
-    expect(fakeAuth.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'ibd-0001@members.test', password: 'correct-horse' })
+    await act(async () => { out = await ctx.signIn(' ০১৭১১-১১১১১১ ', 'correct-horse') })
+    expect(out).toEqual({ ok: true, access: 'active', mustChangePassword: false })
+    expect(fakeAuth.auth.signInWithPassword).toHaveBeenCalledWith({ email: '8801711111111@members.test', password: 'correct-horse' })
     await waitFor(() => expect(state()).toBe('ready|active|-'))
   })
   it('rejects a wrong password generically, without touching profiles', async () => {
     const { fake } = mount()
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('IBD-0001', 'wrong') })
+    await act(async () => { out = await ctx.signIn('01711111111', 'wrong') })
     expect(out).toEqual({ ok: false, reason: 'invalid_credentials' })
     expect(fake.queries.filter((q) => q.table === 'profiles')).toHaveLength(0)
     expect(state()).toBe('signed_out|-|-')
   })
-  it('rejects a malformed Member ID before contacting Supabase', async () => {
+  it('rejects a malformed phone number before contacting Supabase', async () => {
     const { fakeAuth } = mount()
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
-    for (const bad of ['', 'admin@x.org', 'IBD-1', "IBD-0001' or 1=1"]) {
+    for (const bad of ['', 'admin@x.org', 'IBD-0001', '12345', "01711111111' or 1=1"]) {
       let out: unknown
       await act(async () => { out = await ctx.signIn(bad, 'x') })
-      expect(out).toEqual({ ok: false, reason: 'invalid_member_id' })
+      expect(out).toEqual({ ok: false, reason: 'invalid_phone' })
     }
     expect(fakeAuth.auth.signInWithPassword).not.toHaveBeenCalled()
   })
@@ -104,15 +104,15 @@ describe('AuthProvider.signIn: Member ID + password against Supabase Auth', () =
     fakeAuth.auth.signInWithPassword.mockResolvedValueOnce({ data: { user: null, session: null }, error: Object.assign(new Error('rate'), { status: 429 }) })
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('IBD-0001', 'x') })
+    await act(async () => { out = await ctx.signIn('01711111111', 'x') })
     expect(out).toEqual({ ok: false, reason: 'rate_limited' })
   })
-  it('SIGNS OUT and refuses when the authenticated account does not own the typed Member ID', async () => {
-    // Auth email says ibd-0001 but that account\'s profile belongs to IBD-0002: never trust the typed id alone.
-    const { fakeAuth } = mount({ profiles: [profile({ member_id: 'IBD-0002' })] })
+  it('SIGNS OUT and refuses when the authenticated account does not own the typed phone number', async () => {
+    // The Auth email maps to ...1111 but that account\'s profile carries another phone: never trust the typed value alone.
+    const { fakeAuth } = mount({ profiles: [profile({ phone: '+8801722222222' })] })
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('IBD-0001', 'correct-horse') })
+    await act(async () => { out = await ctx.signIn('01711111111', 'correct-horse') })
     expect(out).toEqual({ ok: false, reason: 'invalid_credentials' })
     expect(fakeAuth.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
     await waitFor(() => expect(state().startsWith('signed_out')).toBe(true))
@@ -121,7 +121,7 @@ describe('AuthProvider.signIn: Member ID + password against Supabase Auth', () =
     const { fakeAuth } = mount({ profiles: [] })
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('IBD-0001', 'correct-horse') })
+    await act(async () => { out = await ctx.signIn('01711111111', 'correct-horse') })
     expect(out).toEqual({ ok: false, reason: 'unavailable' })
     expect(fakeAuth.auth.signOut).toHaveBeenCalled()
   })
@@ -130,7 +130,7 @@ describe('AuthProvider.signIn: Member ID + password against Supabase Auth', () =
     mount()
     await waitFor(() => expect(state()).toBe('signed_out|-|-'))
     let out: unknown
-    await act(async () => { out = await ctx.signIn('IBD-0001', 'correct-horse') })
+    await act(async () => { out = await ctx.signIn('01711111111', 'correct-horse') })
     expect(out).toEqual({ ok: false, reason: 'unavailable' })
   })
 })
@@ -158,4 +158,29 @@ describe('safeNext (post-login redirect)', () => {
     ['https://evil.example', '/dashboard'], ['//evil.example', '/dashboard'], ['/dashboard//evil', '/dashboard'],
     ['/admin', '/dashboard'], ['/dashboard/../admin', '/dashboard'], ['javascript:alert(1)', '/dashboard'], ['/dashboard?x=1', '/dashboard'],
   ])('%s -> %s', (input, expected) => expect(safeNext(input)).toBe(expected))
+})
+
+describe('AuthProvider: first login with the temporary password', () => {
+  it('signIn reports mustChangePassword and the provider exposes it', async () => {
+    mount({ profiles: [profile({ must_change_password: true })] })
+    await waitFor(() => expect(state()).toBe('signed_out|-|-'))
+    let out: unknown
+    await act(async () => { out = await ctx.signIn('01711111111', 'correct-horse') })
+    expect(out).toEqual({ ok: true, access: 'active', mustChangePassword: true })
+    expect(ctx.mustChangePassword).toBe(true)
+  })
+  it('loads roles with the profile so admin links can be shown (the server re-checks every admin action)', async () => {
+    const fakeAuth = makeFakeAuth([account], { userId: UID, email: account.email })
+    const fake = makeFakeSupabase({ profiles: [profile()], user_roles: [{ user_id: UID, role: 'admin' }] }, {}, fakeAuth.auth)
+    h.client = fake.client
+    render(<AuthProvider><Probe /></AuthProvider>)
+    await waitFor(() => expect(state()).toBe('ready|active|-'))
+    expect(ctx.isAdmin).toBe(true)
+    expect(ctx.roles).toEqual(['admin'])
+  })
+  it('a plain member has no roles', async () => {
+    mount({ signedIn: true })
+    await waitFor(() => expect(state()).toBe('ready|active|-'))
+    expect(ctx.isAdmin).toBe(false)
+  })
 })

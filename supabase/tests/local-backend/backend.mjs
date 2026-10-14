@@ -4,17 +4,22 @@
 //   /storage/v1/*  -> FAKE storage (returns signed-URL shaped responses and a placeholder image). NOT Supabase Storage.
 import { createServer } from 'node:http'
 import { createHmac } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 
 const SECRET = process.env.PGRST_JWT_SECRET
 const POSTGREST = process.env.POSTGREST_URL ?? 'http://127.0.0.1:3001'
 const PORT = Number(process.env.BACKEND_PORT ?? 3112)
 const PASSWORD = 'Test-Pass-1'
 const USERS = {
-  'ibd-0001@members.test': 'a0000000-0000-0000-0000-000000000001', 'ibd-0002@members.test': 'b0000000-0000-0000-0000-000000000002',
-  'ibd-0003@members.test': 'c0000000-0000-0000-0000-000000000003', 'ibd-0004@members.test': 'd0000000-0000-0000-0000-000000000004',
-  'ibd-0005@members.test': 'e0000000-0000-0000-0000-000000000005', 'ibd-0006@members.test': 'f0000000-0000-0000-0000-000000000006',
+  '8801711111111@members.test': 'a0000000-0000-0000-0000-000000000001', '8801722222222@members.test': 'b0000000-0000-0000-0000-000000000002',
+  '8801733333333@members.test': 'c0000000-0000-0000-0000-000000000003', '8801744444444@members.test': 'd0000000-0000-0000-0000-000000000004',
+  '8801755555555@members.test': 'e0000000-0000-0000-0000-000000000005', '8801766666666@members.test': 'f0000000-0000-0000-0000-000000000006',
+  '8801777777777@members.test': 'a1000000-0000-0000-0000-000000000007',
 }
-const passwords = new Map(Object.keys(USERS).map((e) => [e, PASSWORD]))
+// the brand-new member G still has the temporary password = their phone number; everyone else already chose one
+const passwords = new Map(Object.keys(USERS).map((e) => [e, e.startsWith('8801777777777') ? '01777777777' : PASSWORD]))
+const DB = process.env.TEST_DB ?? 'ibadat_it'
+const sql = (q) => execFileSync('su', ['postgres', '-c', `psql -qAt -d ${DB} -c ${JSON.stringify(q)}`]).toString().trim()
 const b64 = (o) => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64url')
 export function mint(claims) {
   const head = b64({ alg: 'HS256', typ: 'JWT' }), body = b64(claims)
@@ -71,6 +76,32 @@ createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname.startsWith('/storage/v1/object/sign/')) return send(res, 200, PLACEHOLDER, 'image/svg+xml')
     if (url.pathname.startsWith('/storage/v1/object/')) return send(res, 200, req.method === 'DELETE' ? [] : { Key: 'x' })
+    // ---- FAKE Edge Functions (test-only re-implementations; the real ones are in supabase/functions and are not run here)
+    if (req.method === 'POST' && url.pathname === '/functions/v1/complete-first-login') {
+      const email = emailFromBearer(req); if (!email || !USERS[email]) return send(res, 401, { ok: false, code: 'unauthenticated' })
+      const { newPassword = '' } = JSON.parse((await readBody(req)).toString() || '{}')
+      const local = '0' + email.split('@')[0].slice(3)
+      if (sql(`select must_change_password from public.profiles where id='${USERS[email]}'`) !== 't') return send(res, 400, { ok: false, code: 'not_required' })
+      if (String(newPassword).length < 8) return send(res, 400, { ok: false, code: 'too_short' })
+      if ([local, email.split('@')[0], '+' + email.split('@')[0]].includes(newPassword)) return send(res, 400, { ok: false, code: 'same_as_phone' })
+      passwords.set(email, newPassword)
+      sql(`update public.profiles set must_change_password=false where id='${USERS[email]}'`)
+      return send(res, 200, { ok: true })
+    }
+    if (req.method === 'POST' && url.pathname === '/functions/v1/admin-create-member') {
+      const email = emailFromBearer(req)
+      if (!email || !USERS[email] || sql(`select count(*) from public.user_roles where user_id='${USERS[email]}' and role='admin'`) !== '1') return send(res, 403, { ok: false, code: 'forbidden' })
+      const b = JSON.parse((await readBody(req)).toString() || '{}')
+      const ascii = String(b.phone).replace(/[\u09E6-\u09EF]/g, (d) => String(d.charCodeAt(0) - 0x09E6)) // Bengali digits, like the real canonicalPhone()
+      const digits = ascii.replace(/[^0-9]/g, '').replace(/^0/, '880')
+      const phone = '+' + digits, local = '0' + digits.slice(3), newEmail = `${digits}@members.test`
+      if (!/^\+8801[3-9][0-9]{8}$/.test(phone) || !/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/.test(String(b.nidNumber))) return send(res, 422, { ok: false, code: 'invalid' })
+      if (USERS[newEmail]) return send(res, 409, { ok: false, code: 'phone_taken' })
+      const id = sql("select gen_random_uuid()"), mid = sql('select public.generate_member_id()')
+      sql(`insert into auth.users(id,email) values ('${id}','${newEmail}'); insert into public.profiles(id,member_id,full_name,phone,membership_status,membership_start_date) values ('${id}','${mid}','${String(b.fullName).replace(/'/g, "''")}','${phone}','active',current_date); insert into public.member_private_details(profile_id,nid_number) values ('${id}','${b.nidNumber}')`)
+      USERS[newEmail] = id; passwords.set(newEmail, local)
+      return send(res, 200, { ok: true, memberId: mid, phone, initialPassword: local })
+    }
     if (url.pathname === '/__health') return send(res, 200, { ok: true })
     send(res, 404, { message: 'not found in test backend' })
   } catch (e) { send(res, 500, { message: String(e) }) }

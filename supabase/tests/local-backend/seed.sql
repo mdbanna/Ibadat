@@ -1,21 +1,25 @@
 -- TEST-ONLY fixtures for the local backend (real PostgreSQL + real PostgREST). Never run against a real project.
 -- Everyone signs in with the fake-auth password "Test-Pass-1" (see backend.mjs).
+-- Auth email = phone digits @ domain (the production mapping); login phone = the number typed in local form, e.g. 01711111111.
 insert into auth.users (id, email) values
-  ('a0000000-0000-0000-0000-000000000001', 'ibd-0001@members.test'),   -- A: active member
-  ('b0000000-0000-0000-0000-000000000002', 'ibd-0002@members.test'),   -- B: active member (must never be visible to A)
-  ('c0000000-0000-0000-0000-000000000003', 'ibd-0003@members.test'),   -- C: pending member
-  ('d0000000-0000-0000-0000-000000000004', 'ibd-0004@members.test'),   -- T: treasurer
-  ('e0000000-0000-0000-0000-000000000005', 'ibd-0005@members.test'),   -- ADM: administrator
-  ('f0000000-0000-0000-0000-000000000006', 'ibd-0006@members.test');   -- S: suspended member
+  ('a0000000-0000-0000-0000-000000000001', '8801711111111@members.test'),   -- A: active member, 01711111111
+  ('b0000000-0000-0000-0000-000000000002', '8801722222222@members.test'),   -- B: active member (must never be visible to A), 01722222222
+  ('c0000000-0000-0000-0000-000000000003', '8801733333333@members.test'),   -- C: pending member, 01733333333
+  ('d0000000-0000-0000-0000-000000000004', '8801744444444@members.test'),   -- T: treasurer, 01744444444
+  ('e0000000-0000-0000-0000-000000000005', '8801755555555@members.test'),   -- ADM: administrator, 01755555555
+  ('f0000000-0000-0000-0000-000000000006', '8801766666666@members.test'),   -- S: suspended member, 01766666666
+  ('a1000000-0000-0000-0000-000000000007', '8801777777777@members.test');   -- G: brand-new member still on the temporary password (= phone), 01777777777
 
-insert into public.profiles (id, member_id, full_name, phone, email, short_bio, general_location, membership_status, membership_start_date, public_profile_preference) values
-  ('a0000000-0000-0000-0000-000000000001', 'IBD-0001', 'আব্দুল করিম', '+8801711111111', 'a@example.org', 'শিক্ষক ও সমাজকর্মী', 'ঢাকা', 'active', '2026-01-10', true),
-  ('b0000000-0000-0000-0000-000000000002', 'IBD-0002', 'Fatima Rahman', '+8801722222222', 'b@example.org', 'Private bio of B', 'Chattogram', 'active', '2026-02-01', false),
-  ('c0000000-0000-0000-0000-000000000003', 'IBD-0003', 'Pending Person', '+8801733333333', null, null, null, 'pending', null, false),
-  ('d0000000-0000-0000-0000-000000000004', 'IBD-0004', 'Treasurer User', '+8801744444444', null, null, null, 'active', '2026-01-01', false),
-  ('e0000000-0000-0000-0000-000000000005', 'IBD-0005', 'Admin User', '+8801755555555', null, null, null, 'active', '2026-01-01', false),
-  ('f0000000-0000-0000-0000-000000000006', 'IBD-0006', 'Suspended Person', '+8801766666666', null, null, null, 'suspended', '2026-01-05', false);
+insert into public.profiles (id, member_id, full_name, phone, email, short_bio, general_location, membership_status, membership_start_date, public_profile_preference, must_change_password) values
+  ('a0000000-0000-0000-0000-000000000001', 'IBD-0001', 'আব্দুল করিম', '+8801711111111', 'a@example.org', 'শিক্ষক ও সমাজকর্মী', 'ঢাকা', 'active', '2026-01-10', true, false),
+  ('b0000000-0000-0000-0000-000000000002', 'IBD-0002', 'Fatima Rahman', '+8801722222222', 'b@example.org', 'Private bio of B', 'Chattogram', 'active', '2026-02-01', false, false),
+  ('c0000000-0000-0000-0000-000000000003', 'IBD-0003', 'Pending Person', '+8801733333333', null, null, null, 'pending', null, false, false),
+  ('d0000000-0000-0000-0000-000000000004', 'IBD-0004', 'Treasurer User', '+8801744444444', null, null, null, 'active', '2026-01-01', false, false),
+  ('e0000000-0000-0000-0000-000000000005', 'IBD-0005', 'Admin User', '+8801755555555', null, null, null, 'active', '2026-01-01', false, false),
+  ('f0000000-0000-0000-0000-000000000006', 'IBD-0006', 'Suspended Person', '+8801766666666', null, null, null, 'suspended', '2026-01-05', false, false),
+  ('a1000000-0000-0000-0000-000000000007', 'IBD-0007', 'Fresh Member', '+8801777777777', null, null, null, 'active', '2026-10-10', false, true);
 update public.profiles set public_profile_approved = true where id = 'a0000000-0000-0000-0000-000000000001';
+insert into public.member_private_details (profile_id, nid_number) values ('a0000000-0000-0000-0000-000000000001', '1234567890123');
 insert into public.user_roles (user_id, role) values ('d0000000-0000-0000-0000-000000000004', 'treasurer'), ('e0000000-0000-0000-0000-000000000005', 'admin');
 
 -- contributions (verified ones are allocated to the three funds by the ledger trigger)

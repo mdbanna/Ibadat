@@ -38,7 +38,7 @@ export default function SettingsPage() {
     setErrors(found); setMessage(null)
     if (Object.keys(found).length > 0) return
     setBusy(true)
-    const result = await changePassword(profile.member_id, current, next)
+    const result = await changePassword(profile.phone, current, next)
     setBusy(false)
     if (result.ok) { setCurrent(''); setNext(''); setConfirm(''); setMessage({ kind: 'ok', text: t('member.settings.changed') }) }
     else if (result.reason === 'wrong_current') setErrors({ current: t('member.settings.errWrongCurrent') })

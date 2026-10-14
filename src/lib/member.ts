@@ -13,10 +13,10 @@ type Enums = Database['public']['Enums']
 export type MembershipStatus = Enums['membership_status']
 
 const PROFILE_COLUMNS =
-  'id, member_id, full_name, phone, email, profile_image_path, short_bio, general_location, membership_status, membership_start_date, public_profile_preference, public_profile_approved, created_at'
+  'id, member_id, full_name, phone, email, profile_image_path, short_bio, general_location, membership_status, membership_start_date, public_profile_preference, public_profile_approved, must_change_password, created_at'
 export type MemberProfile = Pick<Tables['profiles']['Row'],
   'id' | 'member_id' | 'full_name' | 'phone' | 'email' | 'profile_image_path' | 'short_bio' | 'general_location'
-  | 'membership_status' | 'membership_start_date' | 'public_profile_preference' | 'public_profile_approved' | 'created_at'>
+  | 'membership_status' | 'membership_start_date' | 'public_profile_preference' | 'public_profile_approved' | 'must_change_password' | 'created_at'>
 
 function fail(error: { message: string; code?: string } | null): void {
   if (error) throw Object.assign(new Error(error.message), { code: error.code })
@@ -30,7 +30,6 @@ export async function fetchOwnProfile(userId: string): Promise<MemberProfile | n
 
 export interface ProfilePatch {
   full_name: string
-  phone: string | null
   email: string | null
   general_location: string | null
   short_bio: string | null
@@ -38,7 +37,7 @@ export interface ProfilePatch {
   profile_image_path?: string | null
 }
 
-/** Only descriptive fields can be sent; protected columns (status, member_id, approval) are also blocked by a database trigger. */
+/** Only descriptive fields can be sent. The phone (login identity), status, member_id, approval and the first-login flag are protected by a database trigger. */
 export async function updateOwnProfile(userId: string, patch: ProfilePatch): Promise<MemberProfile> {
   const { data, error } = await requireSupabase().from('profiles').update(patch).eq('id', userId).select(PROFILE_COLUMNS).maybeSingle()
   fail(error)
@@ -233,4 +232,11 @@ export async function uploadProfilePhoto(userId: string, file: File): Promise<st
 
 export async function removeStorageObject(bucket: string, path: string): Promise<void> {
   try { await requireSupabase().storage.from(bucket).remove([path]) } catch { /* best effort: an orphaned old photo is harmless */ }
+}
+
+/** The signed-in user's own roles (RLS: user_roles are readable by their owner). Used only to show admin links; admin actions are re-checked server-side. */
+export async function fetchOwnRoles(userId: string): Promise<string[]> {
+  const { data, error } = await requireSupabase().from('user_roles').select('role').eq('user_id', userId)
+  fail(error)
+  return (data ?? []).map((r) => r.role)
 }

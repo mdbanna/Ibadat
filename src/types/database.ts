@@ -617,6 +617,35 @@ export type Database = {
           },
         ]
       }
+      member_private_details: {
+        Row: {
+          created_at: string
+          nid_number: string
+          profile_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          nid_number: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          nid_number?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_private_details_profile_id_fkey"
+            columns: ["profile_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_applications: {
         Row: {
           address_line: string | null
@@ -800,7 +829,8 @@ export type Database = {
           member_id: string
           membership_start_date: string | null
           membership_status: Database["public"]["Enums"]["membership_status"]
-          phone: string | null
+          must_change_password: boolean
+          phone: string
           profile_image_path: string | null
           public_profile_approved: boolean
           public_profile_preference: boolean
@@ -817,7 +847,8 @@ export type Database = {
           member_id?: string
           membership_start_date?: string | null
           membership_status?: Database["public"]["Enums"]["membership_status"]
-          phone?: string | null
+          must_change_password?: boolean
+          phone: string
           profile_image_path?: string | null
           public_profile_approved?: boolean
           public_profile_preference?: boolean
@@ -833,7 +864,8 @@ export type Database = {
           member_id?: string
           membership_start_date?: string | null
           membership_status?: Database["public"]["Enums"]["membership_status"]
-          phone?: string | null
+          must_change_password?: boolean
+          phone?: string
           profile_image_path?: string | null
           public_profile_approved?: boolean
           public_profile_preference?: boolean

@@ -41,7 +41,7 @@ describe('JoinForm', () => {
     expect(await screen.findByText('APP-2026-00042')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'আপনার আবেদন জমা হয়েছে' })).toHaveFocus()
     expect(fake.rpc).toHaveBeenCalledTimes(1)
-    expect(fake.rpc.mock.calls[0][1]).toMatchObject({ p_phone: '01712345678', p_preferred_language: 'bn', p_consent: true })
+    expect(fake.rpc.mock.calls[0][1]).toMatchObject({ p_phone: '+8801712345678', p_preferred_language: 'bn', p_consent: true })
   })
 
   it('sends the interface language with the application', async () => {

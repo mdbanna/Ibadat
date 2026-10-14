@@ -5,7 +5,7 @@ import { PageContainer } from '../layout'
 import { Button } from '../ui'
 import { useAuth } from '../../lib/auth'
 import { cx } from '../../lib/cx'
-import { DASHBOARD_ITEMS, LOGIN_PATH } from '../../routes'
+import { ADMIN_ADD_MEMBER_PATH, DASHBOARD_ITEMS, LOGIN_PATH } from '../../routes'
 
 /** Sidebar from 1200px; below that a disclosure menu that shows the current section, so nothing scrolls sideways at 360px. */
 export function DashboardLayout() {
@@ -48,6 +48,7 @@ export function DashboardLayout() {
             {DASHBOARD_ITEMS.map((i) => (
               <li key={i.to}><NavLink to={i.to} end={i.end} className={linkClass}>{t(i.key)}</NavLink></li>
             ))}
+            {auth.isAdmin && <li><NavLink to={ADMIN_ADD_MEMBER_PATH} className={linkClass}>{t('member.nav.addMember')}</NavLink></li>}
           </ul>
           <div className="mt-2 border-t border-line pt-2">
             <Button variant="ghost" fullWidth onClick={() => void logout()}>{t('nav.logout')}</Button>

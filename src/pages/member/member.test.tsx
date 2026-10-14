@@ -19,9 +19,9 @@ import { DASHBOARD_ITEMS } from '../../routes'
 
 const UID = '11111111-1111-1111-1111-111111111111'
 const OTHER = '22222222-2222-2222-2222-222222222222'
-const account = { email: 'ibd-0001@members.test', password: 'correct-horse', userId: UID }
+const account = { email: '8801711111111@members.test', password: 'correct-horse', userId: UID }
 const profile = (over: Record<string, unknown> = {}) => ({
-  id: UID, member_id: 'IBD-0001', full_name: 'Test Member', phone: '01712345678', email: 'm@example.org', profile_image_path: null,
+  id: UID, member_id: 'IBD-0001', full_name: 'Test Member', phone: '+8801711111111', must_change_password: false, email: 'm@example.org', profile_image_path: null,
   short_bio: 'Hello', general_location: 'Dhaka', membership_status: 'active', membership_start_date: '2026-01-01',
   public_profile_preference: true, public_profile_approved: false, created_at: '2026-01-01T00:00:00Z', ...over,
 })
@@ -55,9 +55,9 @@ const rpcs = {
   get_employment_summary: () => ({ data: [{ projects_total: 3, projects_planned: 1, projects_approved: 0, projects_in_progress: 1, projects_completed: 1, approved_budget_total: 60000, actual_expense_total: 47000, amounts_suppressed: false }], error: null }),
 }
 
-function boot(opts: { path: string; signedIn?: boolean; data?: ReturnType<typeof tables>; extraAccounts?: Array<{ email: string; password: string; userId: string }> }) {
+function boot(opts: { path: string; signedIn?: boolean; data?: ReturnType<typeof tables>; extraAccounts?: Array<{ email: string; password: string; userId: string }>; fns?: Record<string, (o: unknown) => { data: unknown; error: unknown }> }) {
   const fakeAuth = makeFakeAuth([account, ...(opts.extraAccounts ?? [])], opts.signedIn ? { userId: UID, email: account.email } : undefined)
-  const fake = makeFakeSupabase(opts.data ?? tables(), rpcs, fakeAuth.auth)
+  const fake = makeFakeSupabase(opts.data ?? tables(), rpcs, fakeAuth.auth, opts.fns)
   h.client = fake.client
   window.history.pushState({}, '', opts.path)
   const view = render(<App />)
@@ -104,7 +104,7 @@ describe('protected routes', () => {
 
 describe('login flow', () => {
   async function fill(user: ReturnType<typeof userEvent.setup>, id: string, pw: string) {
-    await user.type(await screen.findByLabelText(/সদস্য আইডি/), id)
+    await user.type(await screen.findByLabelText(/মোবাইল নম্বর/), id)
     await user.type(screen.getByLabelText(/পাসওয়ার্ড/, { selector: 'input' }), pw)
     await user.click(screen.getByRole('button', { name: 'লগইন করুন' }))
   }
@@ -114,17 +114,17 @@ describe('login flow', () => {
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'লগইন করুন' }))
     expect(screen.getAllByText('এই তথ্যটি আবশ্যক')).toHaveLength(2)
-    expect(screen.getByLabelText(/সদস্য আইডি/)).toHaveFocus()
-    await user.type(screen.getByLabelText(/সদস্য আইডি/), 'abc')
+    expect(screen.getByLabelText(/মোবাইল নম্বর/)).toHaveFocus()
+    await user.type(screen.getByLabelText(/মোবাইল নম্বর/), 'abc')
     await user.click(screen.getByRole('button', { name: 'লগইন করুন' }))
-    expect(screen.getByText('সদস্য আইডি সঠিক নয় (যেমন IBD-0001)')).toBeInTheDocument()
+    expect(screen.getByText('সঠিক মোবাইল নম্বর দিন')).toBeInTheDocument()
     expect(fakeAuth.auth.signInWithPassword).not.toHaveBeenCalled()
   })
 
   it('logs in with real-shaped credentials and returns the member to the page they asked for', async () => {
     boot({ path: '/dashboard/profile' })
     const user = userEvent.setup()
-    await fill(user, 'ibd-0001', 'correct-horse')
+    await fill(user, '01711111111', 'correct-horse')
     expect(await screen.findByRole('heading', { level: 1, name: 'আমার প্রোফাইল' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/dashboard/profile')
     expect(screen.getByRole('navigation', { name: 'ড্যাশবোর্ডের অংশসমূহ' })).toBeInTheDocument()
@@ -133,7 +133,7 @@ describe('login flow', () => {
   it('shows one generic message for a wrong password and keeps the visitor on the login page', async () => {
     boot({ path: '/login' })
     const user = userEvent.setup()
-    await fill(user, 'IBD-0001', 'nope')
+    await fill(user, '01711111111', 'nope')
     expect(await screen.findByRole('alert')).toHaveTextContent('সদস্য আইডি বা পাসওয়ার্ড সঠিক নয়।')
     expect(window.location.pathname).toBe('/login')
     expect(screen.getByLabelText(/পাসওয়ার্ড/, { selector: 'input' })).toHaveValue('')
@@ -142,14 +142,14 @@ describe('login flow', () => {
   it('gives the SAME message for an unknown Member ID (no account enumeration)', async () => {
     boot({ path: '/login' })
     const user = userEvent.setup()
-    await fill(user, 'IBD-9999', 'whatever')
+    await fill(user, '01799999999', 'whatever')
     expect(await screen.findByRole('alert')).toHaveTextContent('সদস্য আইডি বা পাসওয়ার্ড সঠিক নয়।')
   })
 
-  it('a correct password for an account whose profile belongs to another Member ID is refused', async () => {
-    boot({ path: '/login', data: tables({ profiles: [profile({ member_id: 'IBD-0002' })] }) })
+  it('a correct password for an account whose profile carries a different phone number is refused', async () => {
+    boot({ path: '/login', data: tables({ profiles: [profile({ phone: '+8801722222222' })] }) })
     const user = userEvent.setup()
-    await fill(user, 'IBD-0001', 'correct-horse')
+    await fill(user, '01711111111', 'correct-horse')
     expect(await screen.findByRole('alert')).toHaveTextContent('সদস্য আইডি বা পাসওয়ার্ড সঠিক নয়।')
     expect(window.location.pathname).toBe('/login')
   })
@@ -157,7 +157,7 @@ describe('login flow', () => {
   it('a correct password for a pending member shows the inactive message, not the dashboard', async () => {
     boot({ path: '/login', data: tables({ profiles: [profile({ membership_status: 'pending' })] }) })
     const user = userEvent.setup()
-    await fill(user, 'IBD-0001', 'correct-horse')
+    await fill(user, '01711111111', 'correct-horse')
     expect(await screen.findByRole('heading', { level: 1, name: 'আপনার সদস্যপদ এখনো সক্রিয় হয়নি' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'ড্যাশবোর্ডের অংশসমূহ' })).not.toBeInTheDocument()
   })
@@ -175,7 +175,7 @@ describe('login flow', () => {
   it('an open-redirect style next parameter falls back to the dashboard', async () => {
     boot({ path: '/login?next=' + encodeURIComponent('https://evil.example/x') })
     const user = userEvent.setup()
-    await fill(user, 'IBD-0001', 'correct-horse')
+    await fill(user, '01711111111', 'correct-horse')
     expect(await screen.findByRole('heading', { level: 1, name: /স্বাগতম/ })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/dashboard')
   })
@@ -276,9 +276,9 @@ describe('what the dashboard asks the backend for (mocked: scoping, not security
       await waitFor(() => expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1))
     }
     const touched = new Set(fake.queries.map((q) => q.table))
-    const allowed = new Set(['profiles', 'contributions', 'funds', 'monthly_reports', 'monthly_report_fund_lines', 'announcements', 'documents', 'activities'])
+    const allowed = new Set(['profiles', 'user_roles', 'contributions', 'funds', 'monthly_reports', 'monthly_report_fund_lines', 'announcements', 'documents', 'activities'])
     for (const t of touched) expect(allowed.has(t), `unexpected table ${t}`).toBe(true)
-    for (const forbidden of ['user_roles', 'fund_transactions', 'beneficiaries', 'assistance_records', 'employment_projects', 'audit_logs', 'membership_applications', 'contact_messages']) {
+    for (const forbidden of ['fund_transactions', 'beneficiaries', 'assistance_records', 'employment_projects', 'audit_logs', 'membership_applications', 'contact_messages']) {
       expect(touched.has(forbidden), forbidden).toBe(false)
     }
     expect(new Set(fake.rpc.mock.calls.map((c) => c[0]))).toEqual(new Set(['get_assistance_summary', 'get_employment_summary']))
@@ -286,6 +286,7 @@ describe('what the dashboard asks the backend for (mocked: scoping, not security
     expect(eqs('profiles').every(([, a]) => a[0] === 'id' && a[1] === UID)).toBe(true)
     expect(eqs('contributions').every(([, a]) => a[0] !== 'profile_id' || a[1] === UID)).toBe(true)
     expect(eqs('contributions').some(([, a]) => a[0] === 'profile_id' && a[1] === UID)).toBe(true)
+    expect(fake.queries.filter((q) => q.table === 'user_roles').flatMap((q) => q.ops).filter(([o]) => o === 'eq').every(([, a]) => a[0] === 'user_id' && a[1] === UID)).toBe(true)
     expect(JSON.stringify([...fake.queries])).not.toContain(OTHER)
   })
 
@@ -314,25 +315,32 @@ describe('profile editing and settings', () => {
     const update = fake.queries.flatMap((q) => q.ops).find(([o]) => o === 'update')
     expect(update).toBeDefined()
     const patch = (update as [string, unknown[]])[1][0] as Record<string, unknown>
-    expect(Object.keys(patch).sort()).toEqual(['email', 'full_name', 'general_location', 'phone', 'public_profile_preference', 'short_bio'])
+    expect(Object.keys(patch).sort()).toEqual(['email', 'full_name', 'general_location', 'public_profile_preference', 'short_bio'])
     expect(patch.full_name).toBe('Renamed Member')
-    for (const forbidden of ['membership_status', 'member_id', 'public_profile_approved', 'id', 'membership_start_date']) expect(patch).not.toHaveProperty(forbidden)
+    for (const forbidden of ['phone', 'must_change_password', 'membership_status', 'member_id', 'public_profile_approved', 'id', 'membership_start_date']) expect(patch).not.toHaveProperty(forbidden)
+  })
+
+  it('shows the login phone number read-only (changing it needs an administrator)', async () => {
+    boot({ path: '/dashboard/profile', signedIn: true })
+    const phone = await screen.findByLabelText(/মোবাইল নম্বর/)
+    expect(phone).toHaveValue('+8801711111111')
+    expect(phone).toHaveAttribute('readonly')
   })
 
   it('validates profile fields client-side', async () => {
     const { fake } = boot({ path: '/dashboard/profile', signedIn: true })
     const user = userEvent.setup()
-    const phone = await screen.findByLabelText(/মোবাইল নম্বর/)
-    await user.clear(phone)
-    await user.type(phone, '12ab')
+    const email = await screen.findByLabelText(/ইমেইল/)
+    await user.clear(email)
+    await user.type(email, 'not-an-email')
     await user.click(screen.getByRole('button', { name: 'সংরক্ষণ করুন' }))
-    expect(await screen.findByText('সঠিক মোবাইল নম্বর দিন')).toBeInTheDocument()
+    expect(await screen.findByText('সঠিক ইমেইল ঠিকানা দিন')).toBeInTheDocument()
     expect(fake.queries.flatMap((q) => q.ops).some(([o]) => o === 'update')).toBe(false)
   })
 
   it('rejects a wrong photo type and an oversized photo without uploading', async () => {
     const { fake } = boot({ path: '/dashboard/profile', signedIn: true })
-    const input = (await screen.findByLabelText(/ছবি বাছাই করুন|প্রোফাইল ছবি/, { selector: 'input[type=file]' }).catch(() => document.getElementById('photo-input'))) as HTMLInputElement
+    const input = (await screen.findByLabelText(/প্রোফাইল ছবি/, { selector: 'input[type=file]' })) as HTMLInputElement
     const user = userEvent.setup({ applyAccept: false })
     await user.upload(input, new File(['x'], 'a.gif', { type: 'image/gif' }))
     expect(await screen.findByText('শুধু JPG, PNG বা WebP ছবি দেওয়া যাবে।')).toBeInTheDocument()
@@ -398,7 +406,7 @@ describe('language and navigation', () => {
     boot({ path: '/login' })
     await i18n.changeLanguage('en')
     const user = userEvent.setup()
-    await user.type(await screen.findByLabelText(/Member ID/), 'IBD-0001')
+    await user.type(await screen.findByLabelText(/Mobile number/), '01711111111')
     await user.type(screen.getByLabelText(/Password/, { selector: 'input' }), 'correct-horse')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Welcome/ })).toBeInTheDocument()
@@ -418,4 +426,119 @@ describe('language and navigation', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'নথি ও নিয়মাবলি' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /ড্যাশবোর্ড মেনু/ })).toHaveAttribute('aria-expanded', 'false')
   })
+})
+
+
+describe('first login with the temporary password (phone number)', () => {
+  it('a member who still has the temporary password is sent to the set-password page from anywhere in the dashboard', async () => {
+    for (const path of ['/dashboard', '/dashboard/reports', '/dashboard/settings']) {
+      const { view } = boot({ path, signedIn: true, data: tables({ profiles: [profile({ must_change_password: true })] }) })
+      expect(await screen.findByRole('heading', { level: 1, name: 'নতুন পাসওয়ার্ড বেছে নিন' })).toBeInTheDocument()
+      expect(window.location.pathname).toBe('/first-login')
+      expect(screen.queryByRole('navigation', { name: 'ড্যাশবোর্ডের অংশসমূহ' })).not.toBeInTheDocument()
+      view.unmount()
+    }
+  })
+
+  it('login with the phone number as password lands on the set-password page, not the dashboard', async () => {
+    boot({ path: '/login', data: tables({ profiles: [profile({ must_change_password: true })] }), extraAccounts: [] })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/মোবাইল নম্বর/), '01711111111')
+    await user.type(screen.getByLabelText(/পাসওয়ার্ড/, { selector: 'input' }), 'correct-horse')
+    await user.click(screen.getByRole('button', { name: 'লগইন করুন' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'নতুন পাসওয়ার্ড বেছে নিন' })).toBeInTheDocument()
+  })
+
+  it('refuses the phone number (or a short password) as the new password without calling the server', async () => {
+    const { fake } = boot({ path: '/first-login', signedIn: true, data: tables({ profiles: [profile({ must_change_password: true })] }) })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/^নতুন পাসওয়ার্ড\*?$/, { selector: 'input' }), '01711111111')
+    await user.type(screen.getByLabelText(/আবার লিখুন/, { selector: 'input' }), '01711111111')
+    await user.click(screen.getByRole('button', { name: 'পাসওয়ার্ড সংরক্ষণ করুন' }))
+    expect(await screen.findByText('নতুন পাসওয়ার্ড আপনার মোবাইল নম্বরের মতো হতে পারবে না।')).toBeInTheDocument()
+    expect(fake.invoke).not.toHaveBeenCalled()
+  })
+
+  it('sets the new password through the Edge Function and then opens the dashboard', async () => {
+    const data = tables({ profiles: [profile({ must_change_password: true })] })
+    const { fake } = boot({
+      path: '/first-login', signedIn: true, data,
+      fns: { 'complete-first-login': () => { (data.profiles[0] as { must_change_password: boolean }).must_change_password = false; return { data: { ok: true }, error: null } } },
+    })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/^নতুন পাসওয়ার্ড\*?$/, { selector: 'input' }), 'my-new-passphrase')
+    await user.type(screen.getByLabelText(/আবার লিখুন/, { selector: 'input' }), 'my-new-passphrase')
+    await user.click(screen.getByRole('button', { name: 'পাসওয়ার্ড সংরক্ষণ করুন' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /স্বাগতম/ })).toBeInTheDocument()
+    expect(fake.invoke).toHaveBeenCalledWith('complete-first-login', { body: { newPassword: 'my-new-passphrase' } })
+    expect(window.location.pathname).toBe('/dashboard')
+  })
+
+  it('says so clearly when the server function is unavailable, and keeps the member on the page', async () => {
+    boot({ path: '/first-login', signedIn: true, data: tables({ profiles: [profile({ must_change_password: true })] }) })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/^নতুন পাসওয়ার্ড\*?$/, { selector: 'input' }), 'my-new-passphrase')
+    await user.type(screen.getByLabelText(/আবার লিখুন/, { selector: 'input' }), 'my-new-passphrase')
+    await user.click(screen.getByRole('button', { name: 'পাসওয়ার্ড সংরক্ষণ করুন' }))
+    expect(await screen.findByText(/এই মুহূর্তে পাসওয়ার্ড পরিবর্তন করা যাচ্ছে না/)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/first-login')
+  })
+
+  it('a member who already chose a password is sent away from the set-password page', async () => {
+    boot({ path: '/first-login', signedIn: true })
+    expect(await screen.findByRole('heading', { level: 1, name: /স্বাগতম/ })).toBeInTheDocument()
+  })
+
+  it('an unauthenticated visitor cannot open the set-password page', async () => {
+    boot({ path: '/first-login' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'সদস্য লগইন' })).toBeInTheDocument()
+  })
+})
+
+describe('administrator: add a member', () => {
+  const adminData = () => tables({ user_roles: [{ user_id: UID, role: 'admin' }] })
+  it('shows the admin link and page only to administrators', async () => {
+    boot({ path: '/dashboard/admin/members/new', signedIn: true })
+    expect(await screen.findByRole('heading', { level: 1, name: 'এই পাতা শুধু প্রশাসকদের জন্য।' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'সদস্য যোগ করুন (প্রশাসক)' })).not.toBeInTheDocument()
+  })
+
+  it('validates, then creates the member through the Edge Function and shows the credentials to hand over', async () => {
+    const { fake } = boot({
+      path: '/dashboard/admin/members/new', signedIn: true, data: adminData(),
+      fns: { 'admin-create-member': () => ({ data: { ok: true, memberId: 'IBD-0007', phone: '+8801733333333', initialPassword: '01733333333' }, error: null }) },
+    })
+    const user = userEvent.setup()
+    expect(await screen.findByRole('heading', { level: 1, name: 'নতুন সদস্য যোগ করুন' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'সদস্য যোগ করুন (প্রশাসক)' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'সদস্য তৈরি করুন' }))
+    expect(screen.getAllByText('এই তথ্যটি আবশ্যক').length).toBeGreaterThan(0)
+    expect(fake.invoke).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText(/পূর্ণ নাম/), 'নতুন সদস্য')
+    await user.type(screen.getByLabelText(/মোবাইল নম্বর/), '০১৭৩৩-৩৩৩৩৩৩')
+    await user.type(screen.getByLabelText(/জাতীয় পরিচয়পত্র নম্বর/), '12345')
+    await user.click(screen.getByRole('button', { name: 'সদস্য তৈরি করুন' }))
+    expect(await screen.findByText('১০, ১৩ বা ১৭ সংখ্যা। শুধু প্রশাসকরা দেখতে পারেন।', { selector: '[role="alert"]' })).toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/জাতীয় পরিচয়পত্র নম্বর/))
+    await user.type(screen.getByLabelText(/জাতীয় পরিচয়পত্র নম্বর/), '1234567890')
+    await user.click(screen.getByRole('button', { name: 'সদস্য তৈরি করুন' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'সদস্য তৈরি হয়েছে' })).toBeInTheDocument()
+    expect(screen.getByText('IBD-0007')).toBeInTheDocument()
+    expect(screen.getAllByText('01733333333')).toHaveLength(2)
+    const body = (fake.invoke.mock.calls[0][1] as { body: Record<string, string> }).body
+    expect(body).toMatchObject({ fullName: 'নতুন সদস্য', phone: '০১৭৩৩-৩৩৩৩৩৩', nidNumber: '1234567890' })
+  })
+
+  it.each([['phone_taken', 'এই মোবাইল নম্বরে আগে থেকেই একটি অ্যাকাউন্ট আছে।'], ['nid_taken', 'এই জাতীয় পরিচয়পত্র নম্বর আগে থেকেই আরেকজন সদস্যের সাথে যুক্ত।'], ['forbidden', 'এই কাজ শুধু প্রশাসকরা করতে পারেন।']])(
+    'maps the server error %s to a clear message', async (code, message) => {
+      boot({ path: '/dashboard/admin/members/new', signedIn: true, data: adminData(), fns: { 'admin-create-member': () => ({ data: { ok: false, code }, error: new Error('non-2xx') }) } })
+      const user = userEvent.setup()
+      await user.type(await screen.findByLabelText(/পূর্ণ নাম/), 'নতুন সদস্য')
+      await user.type(screen.getByLabelText(/মোবাইল নম্বর/), '01733333333')
+      await user.type(screen.getByLabelText(/জাতীয় পরিচয়পত্র নম্বর/), '1234567890')
+      await user.click(screen.getByRole('button', { name: 'সদস্য তৈরি করুন' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    })
 })

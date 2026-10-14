@@ -1,19 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { memberIdToAuthEmail, normalizeMemberId } from './memberAuth'
-import { fetchOwnProfile, type MemberProfile } from './member'
+import { loginEmailFor, requestFirstLoginChange, type FirstLoginOutcome } from './memberAuth'
+import { fetchOwnProfile, fetchOwnRoles, type MemberProfile } from './member'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 /**
- * Member authentication.
+ * Member authentication (phone number + password).
  *
- * Identity is proven ONLY by Supabase Auth (password -> JWT). A Member ID is never trusted by itself: it is mapped to the
- * Auth email "ibd-0001@<domain>", the password is checked by Supabase, and afterwards the signed-in user's own profile
- * (read through RLS) must carry exactly the Member ID that was typed. The database also enforces that binding
- * (migration 20261012000100), so a profile cannot exist for a different Auth account than its Member ID.
+ * Identity is proven ONLY by Supabase Auth (password -> JWT). A phone number is never trusted by itself: it is mapped to the
+ * Auth email "8801712345678@<domain>", the password is checked by Supabase, and afterwards the signed-in user's own profile
+ * (read through RLS) must carry exactly that phone number. The database enforces the same binding (profiles_bind_phone).
  *
- * Roles/active status are never taken from the browser: they are read from the database on every sign-in and the
- * members-only data itself is protected by RLS, so tampering with this state in the browser unlocks nothing.
+ * The first password is the phone number itself. While profile.must_change_password is true the member can only reach the
+ * "set a new password" page, and the DATABASE withholds members-only data too (is_active_member() is false), so tampering with
+ * this state in the browser unlocks nothing. Roles/active status are read from the database at every sign-in.
  */
 
 export type AuthStatus = 'loading' | 'unconfigured' | 'signed_out' | 'checking' | 'ready'
@@ -21,17 +21,21 @@ export type Access = 'active' | 'inactive' | 'no_profile' | 'error'
 export type AuthNotice = 'loggedOut' | 'sessionExpired' | null
 
 export type SignInOutcome =
-  | { ok: true; access: Access }
-  | { ok: false; reason: 'invalid_member_id' | 'invalid_credentials' | 'rate_limited' | 'network' | 'unavailable' }
+  | { ok: true; access: Access; mustChangePassword: boolean }
+  | { ok: false; reason: 'invalid_phone' | 'invalid_credentials' | 'rate_limited' | 'network' | 'unavailable' }
 
 export interface AuthContextValue {
   status: AuthStatus
   session: Session | null
   profile: MemberProfile | null
   access: Access | null
+  roles: string[]
+  isAdmin: boolean
+  mustChangePassword: boolean
   notice: AuthNotice
-  signIn: (memberId: string, password: string) => Promise<SignInOutcome>
+  signIn: (phone: string, password: string) => Promise<SignInOutcome>
   signOut: () => Promise<void>
+  completeFirstLogin: (newPassword: string) => Promise<FirstLoginOutcome>
   setProfile: (profile: MemberProfile) => void
   refreshProfile: () => void
   clearNotice: () => void
@@ -39,8 +43,9 @@ export interface AuthContextValue {
 
 const noop = async () => undefined
 const SIGNED_OUT: AuthContextValue = {
-  status: 'signed_out', session: null, profile: null, access: null, notice: null,
-  signIn: async () => ({ ok: false, reason: 'unavailable' }), signOut: noop, setProfile: () => undefined, refreshProfile: () => undefined, clearNotice: () => undefined,
+  status: 'signed_out', session: null, profile: null, access: null, roles: [], isAdmin: false, mustChangePassword: false, notice: null,
+  signIn: async () => ({ ok: false, reason: 'unavailable' }), signOut: noop, completeFirstLogin: async () => ({ ok: false, reason: 'unavailable' }),
+  setProfile: () => undefined, refreshProfile: () => undefined, clearNotice: () => undefined,
 }
 /** Default value lets public pages render without a provider (e.g. in isolated tests). */
 const AuthContext = createContext<AuthContextValue>(SIGNED_OUT)
@@ -56,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfileState] = useState<MemberProfile | null>(null)
   const [access, setAccess] = useState<Access | null>(null)
+  const [roles, setRoles] = useState<string[]>([])
   const [notice, setNotice] = useState<AuthNotice>(null)
   const userInitiatedSignOut = useRef(false)
   const hadSession = useRef(false)
@@ -79,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userInitiatedSignOut.current = false
         hadSession.current = false
         loadedFor.current = null
-        setSession(null); setProfileState(null); setAccess(null); setStatus('signed_out')
+        setSession(null); setProfileState(null); setAccess(null); setRoles([]); setStatus('signed_out')
         return
       }
       if (next) { hadSession.current = true; setSession(next) }
@@ -87,46 +93,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { active = false; sub.subscription.unsubscribe() }
   }, [])
 
-  // 2) whenever the signed-in user changes, load THEIR profile (RLS) and decide whether the dashboard may open
+  // 2) whenever the signed-in user changes, load THEIR profile and roles (RLS) and decide what they may open
   const userId = session?.user.id ?? null
   useEffect(() => {
     if (!userId) return
     if (loadedFor.current === userId && reloadNonce === 0) return // signIn() already verified this profile
     let current = true
     setStatus('checking')
-    fetchOwnProfile(userId).then(
-      (p) => { if (current) { setProfileState(p); setAccess(accessFor(p)); setStatus('ready') } },
-      () => { if (current) { setProfileState(null); setAccess('error'); setStatus('ready') } },
+    Promise.all([fetchOwnProfile(userId), fetchOwnRoles(userId).catch(() => [] as string[])]).then(
+      ([p, r]) => { if (current) { setProfileState(p); setRoles(r); setAccess(accessFor(p)); setStatus('ready') } },
+      () => { if (current) { setProfileState(null); setRoles([]); setAccess('error'); setStatus('ready') } },
     )
     loadedFor.current = userId
     return () => { current = false }
   }, [userId, reloadNonce])
 
-  const signIn = useCallback<AuthContextValue['signIn']>(async (memberIdInput, password) => {
-    const domain = import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN
-    if (!supabase || !domain) return { ok: false, reason: 'unavailable' }
-    const memberId = normalizeMemberId(memberIdInput)
-    const email = memberId ? memberIdToAuthEmail(memberId, domain) : null
-    if (!memberId || !email) return { ok: false, reason: 'invalid_member_id' }
+  const signIn = useCallback<AuthContextValue['signIn']>(async (phoneInput, password) => {
+    const login = loginEmailFor(phoneInput, import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN)
+    if (!supabase || !import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN) return { ok: false, reason: 'unavailable' }
+    if (!login) return { ok: false, reason: 'invalid_phone' }
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email: login.email, password })
       if (error || !data.user) {
         if (error?.status === 429) return { ok: false, reason: 'rate_limited' }
         if (error?.status === 400 || error?.status === 401 || error?.status === 422) return { ok: false, reason: 'invalid_credentials' }
         return { ok: false, reason: 'network' }
       }
-      // Never trust the typed Member ID alone: the account that just authenticated must own exactly that Member ID.
+      // Never trust the typed phone alone: the account that just authenticated must own exactly that phone number.
       let own: MemberProfile | null = null
-      try { own = await fetchOwnProfile(data.user.id) } catch { /* handled below */ }
-      if (!own || own.member_id !== memberId) {
+      let ownRoles: string[] = []
+      try { [own, ownRoles] = await Promise.all([fetchOwnProfile(data.user.id), fetchOwnRoles(data.user.id).catch(() => [] as string[])]) } catch { /* handled below */ }
+      if (!own || own.phone !== login.phone) {
         userInitiatedSignOut.current = false
         await supabase.auth.signOut({ scope: 'local' })
         return { ok: false, reason: own ? 'invalid_credentials' : 'unavailable' }
       }
       loadedFor.current = data.user.id
       hadSession.current = true
-      setSession(data.session); setProfileState(own); setAccess(accessFor(own)); setStatus('ready'); setNotice(null)
-      return { ok: true, access: accessFor(own) }
+      setSession(data.session); setProfileState(own); setRoles(ownRoles); setAccess(accessFor(own)); setStatus('ready'); setNotice(null)
+      return { ok: true, access: accessFor(own), mustChangePassword: own.must_change_password }
     } catch {
       return { ok: false, reason: 'network' }
     }
@@ -135,18 +140,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     userInitiatedSignOut.current = true
     try { await supabase?.auth.signOut({ scope: 'local' }) } catch { /* local state is cleared below regardless */ }
-    // signOut() clears local storage even if the network call fails; make sure the UI follows.
     loadedFor.current = null
-    setSession(null); setProfileState(null); setAccess(null); setStatus('signed_out'); setNotice('loggedOut')
+    setSession(null); setProfileState(null); setAccess(null); setRoles([]); setStatus('signed_out'); setNotice('loggedOut')
     userInitiatedSignOut.current = false; hadSession.current = false
   }, [])
 
+  /** First-login password change: the Edge Function changes the password and clears the flag; then we sign in again with the new password. */
+  const completeFirstLogin = useCallback<AuthContextValue['completeFirstLogin']>(async (newPassword) => {
+    const result = await requestFirstLoginChange(newPassword)
+    if (!result.ok || !supabase || !profile) return result
+    const login = loginEmailFor(profile.phone, import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN)
+    if (login) await supabase.auth.signInWithPassword({ email: login.email, password: newPassword }).catch(() => undefined)
+    setReloadNonce((n) => n + 1)
+    return result
+  }, [profile])
+
   const value = useMemo<AuthContextValue>(() => ({
-    status, session, profile, access, notice, signIn, signOut,
+    status, session, profile, access, roles, isAdmin: roles.includes('admin'),
+    mustChangePassword: Boolean(profile?.must_change_password), notice, signIn, signOut, completeFirstLogin,
     setProfile: (p) => { setProfileState(p); setAccess(accessFor(p)) },
     refreshProfile: () => setReloadNonce((n) => n + 1),
     clearNotice: () => setNotice(null),
-  }), [status, session, profile, access, notice, signIn, signOut])
+  }), [status, session, profile, access, roles, notice, signIn, signOut, completeFirstLogin])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

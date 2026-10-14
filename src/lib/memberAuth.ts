@@ -1,55 +1,30 @@
+import { canonicalPhone, newPasswordProblem, phoneToAuthEmail } from './phone'
 import { requireSupabase } from './supabase'
 
 /**
- * Login is Member ID + password. Supabase Auth needs an email or phone, so every approved member is created
- * (by a server-side Edge Function, not built yet) with a synthetic email derived from the Member ID.
- * The member's real contact email/phone live in public.profiles. Phone + OTP can be added later without
- * changing profiles, because profiles.phone is already unique.
+ * Login is PHONE NUMBER + password. Supabase Auth needs an email, so every member's Auth account email is derived from the
+ * phone number ("8801712345678@<domain>"); the real contact email (if any) lives in profiles.email. The first password is the
+ * phone number itself and must be changed at first login (see complete-first-login Edge Function).
  */
-const MEMBER_ID_PATTERN = /^IBD-\d{4,}$/
-
-export function normalizeMemberId(input: string): string | null {
-  const value = input.trim().toUpperCase()
-  return MEMBER_ID_PATTERN.test(value) ? value : null
-}
-
-export function memberIdToAuthEmail(memberId: string, domain: string): string | null {
-  const id = normalizeMemberId(memberId)
-  const host = domain.trim().toLowerCase()
-  if (!id || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(host)) return null
-  return `${id.toLowerCase()}@${host}`
-}
-
-export type SignInResult = { ok: true } | { ok: false; reason: 'invalid_member_id' | 'invalid_credentials' | 'not_configured' | 'network' }
-
-/** Prepared but not verified against a live account yet: no member accounts exist. */
-export async function signInWithMemberId(memberId: string, password: string): Promise<SignInResult> {
-  const domain = import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN
-  if (!domain) return { ok: false, reason: 'not_configured' }
-  const email = memberIdToAuthEmail(memberId, domain)
-  if (!email) return { ok: false, reason: 'invalid_member_id' }
-  try {
-    const { error } = await requireSupabase().auth.signInWithPassword({ email, password })
-    if (!error) return { ok: true }
-    return { ok: false, reason: error.status === 400 ? 'invalid_credentials' : 'network' }
-  } catch (e) {
-    return { ok: false, reason: e instanceof Error && e.message === 'supabase_not_configured' ? 'not_configured' : 'network' }
-  }
+export function loginEmailFor(phoneInput: string, domain: string | undefined): { phone: string; email: string } | null {
+  const phone = canonicalPhone(phoneInput)
+  const email = phone && domain ? phoneToAuthEmail(phone, domain) : null
+  return phone && email ? { phone, email } : null
 }
 
 export type ChangePasswordResult = { ok: true } | { ok: false; reason: 'wrong_current' | 'failed' | 'not_configured' }
 
 /**
- * Changing a password re-checks the CURRENT password with Supabase Auth first (so a left-open browser cannot change it),
- * then updates it and ends every other session. Not yet verified against a live Auth server: no accounts exist.
+ * Normal password change (after the first login). Re-checks the CURRENT password with Supabase Auth first, then updates it and
+ * ends every other session. Not yet verified against a live Auth server: no accounts exist there.
  */
-export async function changePassword(memberId: string, currentPassword: string, newPassword: string): Promise<ChangePasswordResult> {
-  const domain = import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN
-  const email = domain ? memberIdToAuthEmail(memberId, domain) : null
-  if (!email) return { ok: false, reason: 'not_configured' }
+export async function changePassword(phone: string, currentPassword: string, newPassword: string): Promise<ChangePasswordResult> {
+  const login = loginEmailFor(phone, import.meta.env.VITE_MEMBER_AUTH_EMAIL_DOMAIN)
+  if (!login) return { ok: false, reason: 'not_configured' }
+  if (newPasswordProblem(newPassword, login.phone)) return { ok: false, reason: 'failed' }
   try {
     const client = requireSupabase()
-    const check = await client.auth.signInWithPassword({ email, password: currentPassword })
+    const check = await client.auth.signInWithPassword({ email: login.email, password: currentPassword })
     if (check.error) return { ok: false, reason: check.error.status === 400 || check.error.status === 401 ? 'wrong_current' : 'failed' }
     const { error } = await client.auth.updateUser({ password: newPassword })
     if (error) return { ok: false, reason: 'failed' }
@@ -67,5 +42,20 @@ export async function signOutOtherDevices(): Promise<boolean> {
     return !error
   } catch {
     return false
+  }
+}
+
+export type FirstLoginOutcome = { ok: true } | { ok: false; reason: 'too_short' | 'same_as_phone' | 'not_required' | 'unavailable' }
+
+/** Calls the complete-first-login Edge Function with the member's own session token. */
+export async function requestFirstLoginChange(newPassword: string): Promise<FirstLoginOutcome> {
+  try {
+    const { data, error } = await requireSupabase().functions.invoke('complete-first-login', { body: { newPassword } })
+    if (!error && data?.ok) return { ok: true }
+    const code = (data as { code?: string } | null)?.code
+    if (code === 'too_short' || code === 'same_as_phone' || code === 'not_required') return { ok: false, reason: code }
+    return { ok: false, reason: 'unavailable' }
+  } catch {
+    return { ok: false, reason: 'unavailable' }
   }
 }

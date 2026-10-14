@@ -27,3 +27,5 @@ export const DASHBOARD_ITEMS = [
 ] as const
 
 export const LOGIN_PATH = '/login'
+export const FIRST_LOGIN_PATH = '/first-login'
+export const ADMIN_ADD_MEMBER_PATH = '/dashboard/admin/members/new'

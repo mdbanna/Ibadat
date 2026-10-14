@@ -6,12 +6,12 @@ import { MemberHeading, Stack } from '../../components/member/MemberUi'
 import { useAuth } from '../../lib/auth'
 import { PHOTO_MAX_BYTES, PHOTO_TYPES, removeStorageObject, updateOwnProfile, uploadProfilePhoto } from '../../lib/member'
 import { formatDate } from '../../lib/localize'
-import { isValidEmail, isValidPhone, normalizePhone } from '../../lib/validation'
+import { isValidEmail } from '../../lib/validation'
 import { usePageMeta } from '../../lib/usePageMeta'
 import { useSignedUrls } from '../../lib/useSignedUrls'
 import type { Language } from '../../i18n'
 
-interface Form { fullName: string; phone: string; email: string; location: string; bio: string; isPublic: boolean }
+interface Form { fullName: string; email: string; location: string; bio: string; isPublic: boolean }
 type Errs = Partial<Record<keyof Form, string>>
 
 export default function ProfilePage() {
@@ -20,7 +20,7 @@ export default function ProfilePage() {
   const { profile, setProfile } = useAuth()
   usePageMeta(null, t('member.nav.profile'))
   const [form, setForm] = useState<Form>(() => ({
-    fullName: profile?.full_name ?? '', phone: profile?.phone ?? '', email: profile?.email ?? '',
+    fullName: profile?.full_name ?? '', email: profile?.email ?? '',
     location: profile?.general_location ?? '', bio: profile?.short_bio ?? '', isPublic: profile?.public_profile_preference ?? false,
   }))
   const [errors, setErrors] = useState<Errs>({})
@@ -39,7 +39,6 @@ export default function ProfilePage() {
     if (!name) e.fullName = t('validation.required')
     else if (name.length < 2) e.fullName = t('validation.tooShort', { min: 2 })
     else if (name.length > 120) e.fullName = t('validation.tooLong', { max: 120 })
-    if (form.phone.trim() && !isValidPhone(normalizePhone(form.phone))) e.phone = t('validation.invalidPhone')
     if (form.email.trim() && !isValidEmail(form.email.trim())) e.email = t('validation.invalidEmail')
     if (form.location.trim().length > 120) e.location = t('validation.tooLong', { max: 120 })
     if (form.bio.trim().length > 300) e.bio = t('validation.tooLong', { max: 300 })
@@ -57,7 +56,6 @@ export default function ProfilePage() {
     try {
       const saved = await updateOwnProfile(profile.id, {
         full_name: form.fullName.trim(),
-        phone: form.phone.trim() ? normalizePhone(form.phone) : null,
         email: form.email.trim() || null,
         general_location: form.location.trim() || null,
         short_bio: form.bio.trim() || null,
@@ -82,7 +80,7 @@ export default function ProfilePage() {
       const previous = profile.profile_image_path
       const path = await uploadProfilePhoto(profile.id, file)
       const saved = await updateOwnProfile(profile.id, {
-        full_name: profile.full_name, phone: profile.phone, email: profile.email, general_location: profile.general_location,
+        full_name: profile.full_name, email: profile.email, general_location: profile.general_location,
         short_bio: profile.short_bio, public_profile_preference: profile.public_profile_preference, profile_image_path: path,
       })
       setProfile(saved)
@@ -138,8 +136,8 @@ export default function ProfilePage() {
                 {(p) => <Input {...p} name="fullName" autoComplete="name" value={form.fullName} onChange={(e) => set('fullName', e.target.value)} />}
               </FormField>
             </div>
-            <FormField label={t('forms.phone')} error={errors.phone}>
-              {(p) => <Input {...p} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" value={form.phone} onChange={(e) => set('phone', e.target.value)} />}
+            <FormField label={t('forms.phone')} hint={t('member.profile.phoneLocked')}>
+              {(p) => <Input {...p} name="phone" type="tel" dir="ltr" readOnly value={profile.phone} />}
             </FormField>
             <FormField label={t('forms.email')} error={errors.email}>
               {(p) => <Input {...p} name="email" type="email" autoComplete="email" dir="ltr" value={form.email} onChange={(e) => set('email', e.target.value)} />}

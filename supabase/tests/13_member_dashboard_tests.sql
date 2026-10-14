@@ -18,17 +18,19 @@ declare
   ben uuid := (select id from public.beneficiaries limit 1);
   r record; n int;
 begin
-  -- ============================================================ Member ID <-> Auth account binding
+  -- ============================================================ phone <-> Auth account binding (login identity)
   perform tt.as_super();
-  insert into auth.users (id, email) values (x1, 'ibd-0098@members.test'), (x2, 'ibd-0099@members.test'), (nop, 'ibd-0097@members.test');
-  insert into public.profiles (id, member_id, full_name) values (x1, 'IBD-0098', 'Bound Member');
-  perform tt.ok(true, 'profile whose member_id matches its auth email is accepted');
-  perform tt.denied($q$insert into public.profiles (id, member_id, full_name) values ('00000000-0000-0000-0000-0000000000f2', 'IBD-0098', 'Wrong Binding')$q$,
-                    'member_id_must_match_auth_account', 'profile cannot claim a member_id that belongs to another auth account');
-  perform tt.denied($q$insert into public.profiles (id, member_id, full_name) values ('00000000-0000-0000-0000-0000000000aa', 'IBD-0050', 'No Auth User')$q$,
-                    'member_id_must_match_auth_account', 'profile cannot exist without a matching auth user');
-  perform tt.denied($q$update public.profiles set member_id = 'IBD-0099' where id = '00000000-0000-0000-0000-0000000000f1'$q$,
-                    'member_id_must_match_auth_account', 'member_id cannot be re-pointed even by a server-side session');
+  insert into auth.users (id, email) values (x1, '8801700000098@members.test'), (x2, '8801700000099@members.test'), (nop, '8801700000097@members.test');
+  insert into public.profiles (id, full_name, phone, must_change_password) values (x1, 'Bound Member', '+8801700000098', false);
+  perform tt.ok(true, 'profile whose phone matches its auth email is accepted');
+  perform tt.denied($q$insert into public.profiles (id, full_name, phone) values ('00000000-0000-0000-0000-0000000000f2', 'Wrong Binding', '+8801700000098')$q$,
+                    'phone_must_match_auth_account', 'profile cannot claim a phone number that belongs to another auth account');
+  perform tt.denied($q$insert into public.profiles (id, full_name, phone) values ('00000000-0000-0000-0000-0000000000aa', 'No Auth User', '+8801700000050')$q$,
+                    'phone_must_match_auth_account', 'profile cannot exist without a matching auth user');
+  perform tt.denied($q$update public.profiles set phone = '+8801700000099' where id = '00000000-0000-0000-0000-0000000000f1'$q$,
+                    'phone_must_match_auth_account', 'phone cannot be re-pointed even by a server-side session');
+  perform tt.denied($q$insert into public.profiles (id, full_name, phone) values ('00000000-0000-0000-0000-0000000000f2', 'Bad Format', '8801700000099')$q$,
+                    'profiles_phone_canonical', 'phone must be stored in canonical +880 form');
   update public.profiles set full_name = 'Bound Member Renamed' where id = x1;
   perform tt.ok((select full_name from public.profiles where id = x1) = 'Bound Member Renamed', 'ordinary profile updates are unaffected by the binding');
 
@@ -131,10 +133,11 @@ begin
   perform tt.ok(tt.n('select 1 from public.fund_transactions') = 0 and tt.n('select 1 from public.fund_balances') = 0, 'ledger and balances stay hidden from members');
   perform tt.ok(tt.n('select 1 from public.user_roles') = 0, 'members cannot list roles');
   perform tt.ok(tt.n('select 1 from public.contact_messages') = 0, 'members cannot read contact messages');
-  update public.profiles set phone = '+8801799999999', email = 'new@example.org', short_bio = 'Updated', general_location = 'Khulna' where id = m1;
+  update public.profiles set email = 'new@example.org', short_bio = 'Updated', general_location = 'Khulna' where id = m1;
   perform tt.as_super();
-  perform tt.ok((select phone from public.profiles where id = m1) = '+8801799999999', 'member can edit their own contact fields');
+  perform tt.ok((select email from public.profiles where id = m1) = 'new@example.org', 'member can edit their own contact fields');
   perform tt.as_user(m1, 'authenticated');
+  perform tt.denied($q$update public.profiles set phone = '+8801799999999' where id = auth.uid()$q$, 'phone_must_match_auth_account', 'member cannot change their login phone (binding trigger fires before the column guard)');
   update public.profiles set phone = '01712345678' where id = '00000000-0000-0000-0000-000000000022';  -- RLS hides the row: 0 rows updated
   perform tt.as_super();
   perform tt.ok((select phone from public.profiles where id = '00000000-0000-0000-0000-000000000022') is distinct from '01712345678', 'member cannot edit another member profile (0 rows updated)');

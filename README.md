@@ -10,9 +10,9 @@ Not built yet: admin panel, CMS screens, account-creation Edge Function.
 npm install
 cp .env.example .env.local     # fill in the public Supabase values
 npm run dev                    # http://localhost:5173  (/design-system shows the components)
-npm test                       # 198 unit/UI tests (mocked Supabase): i18n parity, validation, forms, pages (axe), auth states, guards, contrast
+npm test                       # 257 unit/UI tests (mocked Supabase): i18n parity, validation, forms, pages (axe), auth states, guards, contrast
 npm run build                  # typecheck + production build
-npm run test:db                # needs local PostgreSQL: applies all migrations to a scratch DB, 167 RLS/ledger/binding assertions
+npm run test:db                # needs local PostgreSQL: applies all migrations to a scratch DB, 193 RLS/ledger/binding/first-login assertions
 npm run test:integration       # real PostgREST + PostgreSQL (see docs/phase3-member-dashboard.md)
 npm run test:e2e               # headless Chromium at 360/768/1280px against the local backend
 ```

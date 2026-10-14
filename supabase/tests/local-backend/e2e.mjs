@@ -17,6 +17,10 @@ const VIEWPORTS = [{ name: 'mobile-360', width: 360, height: 740 }, { name: 'tab
 const PUBLIC = ['/', '/about', '/activities', '/activities/winter-relief', '/gallery', '/members', '/join', '/contact', '/login']
 const DASH = ['/dashboard', '/dashboard/profile', '/dashboard/contributions', '/dashboard/funds', '/dashboard/reports', '/dashboard/assistance', '/dashboard/employment', '/dashboard/medical', '/dashboard/activities', '/dashboard/announcements', '/dashboard/documents', '/dashboard/settings']
 
+async function clearAndType(page, sel, value) {
+  await page.focus(sel); await page.keyboard.down('Control'); await page.keyboard.press('A'); await page.keyboard.up('Control'); await page.keyboard.press('Backspace')
+  if (value) await page.type(sel, value)
+}
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok: Boolean(ok), detail }); console.log(`${ok ? 'PASS' : 'FAIL'}: ${name}${detail && !ok ? `  -> ${detail}` : ''}`) }
 
@@ -84,7 +88,7 @@ for (const vp of VIEWPORTS) {
     check(`[${vp.name}] unauthenticated /dashboard/contributions redirects to login with next`, page.url().includes('/login?next=%2Fdashboard%2Fcontributions'), page.url())
     check(`[${vp.name}] dashboard content is not rendered for a visitor`, !(await text(page)).includes('TRX-A1'))
 
-    await page.type('input[name="username"]', 'IBD-0001'); await page.type('input[name="password"]', 'wrong-password')
+    await page.type('input[name="username"]', '01711111111'); await page.type('input[name="password"]', 'wrong-password')
     await Promise.all([page.click('button[type="submit"]'), settle(page)])
     const err = await page.$eval('[role="alert"]', (e) => e.innerText).catch(() => '')
     check(`[${vp.name}] wrong password shows the generic Bengali error`, err.includes('সদস্য আইডি বা পাসওয়ার্ড সঠিক নয়'), err)
@@ -92,7 +96,7 @@ for (const vp of VIEWPORTS) {
 
     await page.$eval('input[name="username"]', (e) => { e.value = '' }); await page.$eval('input[name="password"]', (e) => { e.value = '' })
     await page.focus('input[name="username"]'); await page.keyboard.down('Control'); await page.keyboard.press('A'); await page.keyboard.up('Control'); await page.keyboard.press('Backspace')
-    await page.type('input[name="username"]', 'ibd-0001'); await page.type('input[name="password"]', PASSWORD)
+    await page.type('input[name="username"]', '01711111111'); await page.type('input[name="password"]', PASSWORD)
     await Promise.all([page.click('button[type="submit"]'), settle(page)])
     await page.waitForSelector('nav[aria-label="ড্যাশবোর্ডের অংশসমূহ"]', { timeout: 10000 }).catch(() => {})
     check(`[${vp.name}] correct login returns the member to the requested section`, page.url().endsWith('/dashboard/contributions'), page.url())
@@ -143,7 +147,7 @@ for (const vp of VIEWPORTS) {
 // ------------------------------------------------ other identities (desktop viewport)
 {
   const vp = VIEWPORTS[2]
-  for (const [id, label, expectText] of [['ibd-0003', 'pending member', 'আপনার সদস্যপদ এখনো সক্রিয় হয়নি'], ['ibd-0006', 'suspended member', 'আপনার সদস্যপদ বর্তমানে স্থগিত']]) {
+  for (const [id, label, expectText] of [['01733333333', 'pending member', 'আপনার সদস্যপদ এখনো সক্রিয় হয়নি'], ['01766666666', 'suspended member', 'আপনার সদস্যপদ বর্তমানে স্থগিত']]) {
     const { page, ctx } = await newPage(vp)
     await go(page, '/login'); await login(page, id, PASSWORD)
     await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 8000 }, expectText).catch(() => {})
@@ -155,7 +159,7 @@ for (const vp of VIEWPORTS) {
     await ctx.close()
   }
   const { page, ctx } = await newPage(vp)
-  await go(page, '/login'); await login(page, 'ibd-0002', PASSWORD)
+  await go(page, '/login'); await login(page, '01722222222', PASSWORD)
   await go(page, '/dashboard/contributions')
   const body = await text(page)
   check(`[${vp.name}] member B sees only B's contribution and none of A's`, body.includes('TRX-B1') && !body.includes('TRX-A1') && !body.includes('TRX-A3'))
@@ -164,6 +168,81 @@ for (const vp of VIEWPORTS) {
   await Promise.all([page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('পাসওয়ার্ড পরিবর্তন করুন'))?.click()), settle(page)])
   await page.waitForFunction(() => document.body.innerText.includes('পাসওয়ার্ড পরিবর্তন হয়েছে'), { timeout: 8000 }).catch(() => {})
   check(`[${vp.name}] password change flow completes (fake auth backend)`, (await text(page)).includes('পাসওয়ার্ড পরিবর্তন হয়েছে'))
+  await ctx.close()
+}
+
+
+// ------------------------------------------------ first login (temporary password = phone number) and admin add-member
+{
+  const vp = VIEWPORTS[0]  // phone-sized screen: the realistic case for these members
+  const NEW_PW = 'Brand-New-Pass-1'
+  const { page, ctx } = await newPage(vp)
+  await go(page, '/login'); await login(page, '01777777777', '01777777777')
+  await page.waitForFunction(() => location.pathname === '/first-login', { timeout: 8000 }).catch(() => {})
+  check(`[${vp.name}] G logs in with the phone number as password and is sent to the set-password page`, new URL(page.url()).pathname === '/first-login', page.url())
+  let o = await overflow(page)
+  check(`[${vp.name}] set-password page: no horizontal overflow`, o.scrollWidth <= o.vw + 1 && o.bad.length === 0, JSON.stringify(o))
+  await shot(page, `${vp.name}-first-login`)
+  await go(page, '/dashboard/reports')
+  check(`[${vp.name}] deep link into the dashboard bounces back to the set-password page`, new URL(page.url()).pathname === '/first-login', page.url())
+  // in-browser: with G's token the database withholds members-only data even though the UI is bypassed
+  const gate = await page.evaluate(async (base) => {
+    const key = Object.keys(localStorage).find((k) => k.endsWith('-auth-token')); const tok = JSON.parse(localStorage.getItem(key)).access_token
+    const call = async (p, init) => { const r = await fetch(`${base}/rest/v1/${p}`, { ...init, headers: { authorization: `Bearer ${tok}`, apikey: tok, 'content-type': 'application/json', ...(init?.headers ?? {}) } }); return { status: r.status, body: await r.json().catch(() => null) } }
+    return { reports: await call('monthly_reports?select=id'), docs: await call('documents?select=title_en'), agg: await call('rpc/get_assistance_summary', { method: 'POST', body: '{}' }), flag: await call('profiles?id=eq.a1000000-0000-0000-0000-000000000007', { method: 'PATCH', body: JSON.stringify({ must_change_password: false }) }) }
+  }, 'http://127.0.0.1:3112')
+  check(`[${vp.name}] while on the temporary password the database returns no reports, no members documents, refuses aggregates, and refuses clearing the flag`,
+    gate.reports.body.length === 0 && gate.docs.body.length === 0 && gate.agg.status >= 400 && gate.flag.status >= 400, JSON.stringify(gate).slice(0, 300))
+  await page.goto(BASE + '/first-login', { waitUntil: 'domcontentloaded' }); await page.waitForSelector('input[name="new-password"]'); await settle(page)
+  await page.type('input[name="new-password"]', '01777777777'); await page.type('input[name="confirm-password"]', '01777777777')
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('পাসওয়ার্ড সংরক্ষণ করুন'))?.click()); await settle(page)
+  check(`[${vp.name}] the phone number is refused as the new password`, (await text(page)).includes('নতুন পাসওয়ার্ড আপনার মোবাইল নম্বরের মতো হতে পারবে না'))
+  await clearAndType(page, 'input[name="new-password"]', NEW_PW); await clearAndType(page, 'input[name="confirm-password"]', NEW_PW)
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('পাসওয়ার্ড সংরক্ষণ করুন'))?.click())
+  await page.waitForFunction(() => location.pathname === '/dashboard', { timeout: 10000 }).catch(() => {})
+  await settle(page)
+  check(`[${vp.name}] after choosing a new password G reaches the dashboard`, new URL(page.url()).pathname === '/dashboard' && (await h1s(page))[0]?.includes('স্বাগতম'), page.url())
+  await shot(page, `${vp.name}-first-login-done`)
+  // logout; the temporary password no longer works, the new one does
+  await page.evaluate(() => { [...document.querySelectorAll('button')].find((x) => /^(Log out|লগআউট)$/.test(x.textContent.trim()))?.click() })
+  await page.waitForFunction(() => location.pathname === '/login', { timeout: 8000 }).catch(() => {})
+  await settle(page)
+  await login(page, '01777777777', '01777777777')
+  check(`[${vp.name}] the old temporary password stops working after the change`, (await page.$eval('[role="alert"]', (e) => e.innerText).catch(() => '')).includes('সঠিক নয়'))
+  await clearAndType(page, 'input[name="password"]', NEW_PW)
+  await Promise.all([page.click('button[type="submit"]'), settle(page)])
+  await page.waitForFunction(() => location.pathname === '/dashboard', { timeout: 8000 }).catch(() => {})
+  check(`[${vp.name}] the new password works and goes straight to the dashboard`, new URL(page.url()).pathname === '/dashboard', page.url())
+  await ctx.close()
+}
+{
+  const vp = VIEWPORTS[2]
+  const { page, ctx } = await newPage(vp)
+  await go(page, '/login'); await login(page, '01711111111', PASSWORD)
+  await go(page, '/dashboard/admin/members/new')
+  check(`[${vp.name}] a plain member does not get the admin page or its link`, (await text(page)).includes('এই পাতা শুধু প্রশাসকদের জন্য') && !(await text(page)).includes('সদস্য যোগ করুন (প্রশাসক)'))
+  await ctx.close()
+}
+{
+  const vp = VIEWPORTS[2]
+  const { page, ctx } = await newPage(vp)
+  await go(page, '/login'); await login(page, '01755555555', PASSWORD)
+  check(`[${vp.name}] the administrator sees the "add member" link`, (await text(page)).includes('সদস্য যোগ করুন (প্রশাসক)'))
+  await go(page, '/dashboard/admin/members/new')
+  let o = await overflow(page)
+  check(`[${vp.name}] admin add-member page: no horizontal overflow, one h1`, o.scrollWidth <= o.vw + 1 && (await h1s(page)).length === 1, JSON.stringify(o))
+  await page.type('input[name="fullName"]', 'নতুন সদস্য'); await page.type('input[name="phone"]', '০১৭৮৮-৮৮৮৮৮৮'); await page.type('input[name="nidNumber"]', '1234567890')
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('সদস্য তৈরি করুন'))?.click())
+  await page.waitForFunction(() => document.body.innerText.includes('সদস্য তৈরি হয়েছে'), { timeout: 10000 }).catch(() => {})
+  const body = await text(page)
+  check(`[${vp.name}] admin creates a member and gets the Member ID plus the first password (the phone number) to hand over`, body.includes('সদস্য তৈরি হয়েছে') && body.includes('IBD-0008') && body.includes('01788888888'), body.slice(0, 200))
+  await shot(page, `${vp.name}-admin-member-created`)
+  await page.evaluate(() => { [...document.querySelectorAll('button')].find((x) => /^(Log out|লগআউট)$/.test(x.textContent.trim()))?.click() })
+  await page.waitForFunction(() => location.pathname === '/login', { timeout: 8000 }).catch(() => {})
+  await settle(page)
+  await login(page, '01788888888', '01788888888')
+  await page.waitForFunction(() => location.pathname === '/first-login', { timeout: 8000 }).catch(() => {})
+  check(`[${vp.name}] the newly created member signs in with their phone number and must choose a password`, new URL(page.url()).pathname === '/first-login', page.url())
   await ctx.close()
 }
 

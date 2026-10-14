@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout'
 import { Loading } from './components/ui'
 import { DashboardLayout } from './components/member/DashboardLayout'
+import { RequireAdmin } from './components/member/RequireAdmin'
 import { RequireMember } from './components/member/RequireMember'
 import { AuthProvider } from './lib/auth'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -28,6 +29,8 @@ const MedicalPage = lazy(() => import('./pages/member/AssistancePages').then((m)
 const MemberActivitiesPage = lazy(() => import('./pages/member/ActivitiesAnnouncementsDocuments').then((m) => ({ default: m.MemberActivitiesPage })))
 const MemberAnnouncementsPage = lazy(() => import('./pages/member/ActivitiesAnnouncementsDocuments').then((m) => ({ default: m.MemberAnnouncementsPage })))
 const MemberDocumentsPage = lazy(() => import('./pages/member/ActivitiesAnnouncementsDocuments').then((m) => ({ default: m.MemberDocumentsPage })))
+const FirstLoginPage = lazy(() => import('./pages/FirstLoginPage'))
+const AddMemberPage = lazy(() => import('./pages/admin/AddMemberPage'))
 const SettingsPage = lazy(() => import('./pages/member/SettingsPage'))
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage').then((m) => ({ default: m.DesignSystemPage })))
 
@@ -47,6 +50,7 @@ export default function App() {
             <Route path="join" element={<JoinPage />} />
             <Route path="contact" element={<ContactPage />} />
             <Route path="login" element={<LoginPage />} />
+            <Route path="first-login" element={<FirstLoginPage />} />
             {/* Members-only area: guarded in the UI by RequireMember AND in the database by RLS / security-definer functions. */}
             <Route path="dashboard" element={<RequireMember />}>
               <Route element={<DashboardLayout />}>
@@ -62,6 +66,9 @@ export default function App() {
                 <Route path="announcements" element={<MemberAnnouncementsPage />} />
                 <Route path="documents" element={<MemberDocumentsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="admin" element={<RequireAdmin />}>
+                  <Route path="members/new" element={<AddMemberPage />} />
+                </Route>
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Route>

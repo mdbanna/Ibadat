@@ -25,6 +25,8 @@ function lengthError(value: string, min: number, max: number): FieldError | unde
 const maxOnly = (value: string, max: number): FieldError | undefined =>
   value.trim().length > max ? { key: 'tooLong', params: { max } } : undefined
 
+import { canonicalPhone } from './phone'
+
 export interface JoinValues {
   fullName: string; phone: string; email: string; dateOfBirth: string; occupation: string
   addressLine: string; district: string; upazila: string; motivation: string; consent: boolean
@@ -34,9 +36,8 @@ export type JoinField = keyof JoinValues
 export function validateJoin(v: JoinValues, today = new Date()): Errors<JoinField> {
   const e: Errors<JoinField> = {}
   const name = lengthError(v.fullName, 2, 120); if (name) e.fullName = name
-  const phone = normalizePhone(v.phone)
   if (!v.phone.trim()) e.phone = { key: 'required' }
-  else if (!isValidPhone(phone)) e.phone = { key: 'invalidPhone' }
+  else if (!canonicalPhone(v.phone)) e.phone = { key: 'invalidPhone' }
   if (v.email.trim() && !isValidEmail(v.email.trim())) e.email = { key: 'invalidEmail' }
   if (v.dateOfBirth) {
     const d = new Date(`${v.dateOfBirth}T00:00:00Z`)

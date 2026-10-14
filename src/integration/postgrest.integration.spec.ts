@@ -29,6 +29,7 @@ const SECRET = process.env.PGRST_JWT_SECRET ?? 'test-only-secret-at-least-32-cha
 const IDS = {
   A: 'a0000000-0000-0000-0000-000000000001', B: 'b0000000-0000-0000-0000-000000000002', C: 'c0000000-0000-0000-0000-000000000003',
   T: 'd0000000-0000-0000-0000-000000000004', ADM: 'e0000000-0000-0000-0000-000000000005', S: 'f0000000-0000-0000-0000-000000000006',
+  G: 'a1000000-0000-0000-0000-000000000007', // brand-new member, still on the temporary password
 }
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
 function mint(claims: Record<string, unknown>, secret = SECRET) {
@@ -104,12 +105,18 @@ describe('contributions: only my own, never anyone else\'s', () => {
 })
 
 describe('private tables stay private to a member', () => {
-  const privateTables = ['user_roles', 'fund_transactions', 'beneficiaries', 'assistance_records', 'employment_projects', 'audit_logs', 'membership_applications', 'contact_messages']
+  const privateTables = ['fund_transactions', 'beneficiaries', 'assistance_records', 'employment_projects', 'audit_logs', 'membership_applications', 'contact_messages']
   it.each(privateTables)('A reads nothing from %s', async (table) => {
     as('A')
     const r = await raw().from(table).select('*')
     expect(JSON.stringify(r.data ?? [])).not.toContain('SECRET')
     expect(r.data ?? []).toEqual([])
+  })
+  it('A can read only their OWN roles row set (none), never anyone else\'s', async () => {
+    as('A')
+    expect((await raw().from('user_roles').select('user_id, role')).data).toEqual([])
+    as('ADM')
+    expect((await raw().from('user_roles').select('user_id, role').eq('user_id', IDS.ADM)).data).toEqual([{ user_id: IDS.ADM, role: 'admin' }])
   })
   it('fund balances (ledger-derived) are hidden from members', async () => {
     as('A')
@@ -213,7 +220,7 @@ describe('public website data', () => {
 describe('writes: members cannot elevate themselves or touch the ledger', () => {
   it('A cannot change status, member id or approval (database trigger)', async () => {
     as('A')
-    for (const patch of [{ membership_status: 'suspended' }, { public_profile_approved: false }, { member_id: 'IBD-9999' }, { membership_start_date: '2020-01-01' }]) {
+    for (const patch of [{ membership_status: 'suspended' }, { public_profile_approved: false }, { member_id: 'IBD-9999' }, { membership_start_date: '2020-01-01' }, { phone: '+8801799999999' }, { must_change_password: true }]) {
       const r = await raw().from('profiles').update(patch).eq('id', IDS.A).select()
       expect(r.error, JSON.stringify(patch)).not.toBeNull()
     }
@@ -221,7 +228,7 @@ describe('writes: members cannot elevate themselves or touch the ledger', () => 
   })
   it('A cannot edit B (0 rows) and the app helper reports it', async () => {
     as('A')
-    await expect(updateOwnProfile(IDS.B, { full_name: 'Hacked', phone: null, email: null, general_location: null, short_bio: null, public_profile_preference: false })).rejects.toThrow('profile_not_updated')
+    await expect(updateOwnProfile(IDS.B, { full_name: 'Hacked', email: null, general_location: null, short_bio: null, public_profile_preference: false })).rejects.toThrow('profile_not_updated')
     as('B')
     expect((await fetchOwnProfile(IDS.B))?.full_name).toBe('Fatima Rahman')
   })
@@ -236,7 +243,7 @@ describe('writes: members cannot elevate themselves or touch the ledger', () => 
   })
   it('A can edit descriptive fields; changing public content withdraws approval', async () => {
     as('A')
-    const saved = await updateOwnProfile(IDS.A, { full_name: 'আব্দুল করিম', phone: '+8801711111111', email: 'a@example.org', general_location: 'ঢাকা', short_bio: 'নতুন পরিচিতি', public_profile_preference: true })
+    const saved = await updateOwnProfile(IDS.A, { full_name: 'আব্দুল করিম', email: 'a@example.org', general_location: 'ঢাকা', short_bio: 'নতুন পরিচিতি', public_profile_preference: true })
     expect(saved.short_bio).toBe('নতুন পরিচিতি')
     expect(saved.public_profile_approved).toBe(false) // an administrator must re-approve
     as('anon')
@@ -257,5 +264,58 @@ describe('JWT verification is real (PostgREST rejects forged or expired tokens)'
   })
   it('a role claim cannot be self-assigned without the secret', async () => {
     expect((await get(mint({ sub: IDS.A, role: 'service_role', exp: now() + 3600 }, 'forged-secret-forged-secret-forged!!'))).status).toBe(401)
+  })
+})
+
+
+describe('first login: a member on the temporary password (their phone number)', () => {
+  it('can read only their own profile and sees the flag, so the app can force the password change', async () => {
+    as('G')
+    const me = await fetchOwnProfile(IDS.G)
+    expect(me).toMatchObject({ phone: '+8801777777777', must_change_password: true, membership_status: 'active' })
+    expect(await fetchOwnProfile(IDS.A)).toBeNull()
+  })
+  it('is withheld ALL members-only data by the database itself (not just by the UI)', async () => {
+    as('G')
+    expect(await listPublishedReports()).toEqual([])
+    expect((await listAnnouncements()).map((a) => a.title_en)).toEqual(['General notice'])
+    expect(await listDocuments()).toEqual([])
+    await expect(getAssistanceSummary()).rejects.toThrow()
+    await expect(getEmploymentSummary()).rejects.toThrow()
+  })
+  it('cannot clear the flag or edit the phone themselves; only server-side code can', async () => {
+    as('G')
+    expect((await raw().from('profiles').update({ must_change_password: false }).eq('id', IDS.G).select()).error).not.toBeNull()
+    expect((await raw().from('profiles').update({ phone: '+8801788888888' }).eq('id', IDS.G).select()).error).not.toBeNull()
+    expect((await fetchOwnProfile(IDS.G))?.must_change_password).toBe(true)
+  })
+  it('not even an administrator can clear another member\'s flag through the API', async () => {
+    as('ADM')
+    expect((await raw().from('profiles').update({ must_change_password: false }).eq('id', IDS.G).select()).error).not.toBeNull()
+  })
+})
+
+describe('national ID numbers (private member details)', () => {
+  it('only the administrator can read them', async () => {
+    as('ADM')
+    const r = await raw().from('member_private_details').select('profile_id, nid_number')
+    expect(r.data).toEqual([{ profile_id: IDS.A, nid_number: '1234567890123' }])
+  })
+  it.each(['A', 'B', 'T', 'G', 'C'] as const)('%s cannot read or write them', async (actor) => {
+    as(actor)
+    const r = await raw().from('member_private_details').select('*')
+    expect(r.data ?? []).toEqual([])
+    expect(JSON.stringify(r.data ?? [])).not.toContain('1234567890123')
+    expect((await raw().from('member_private_details').insert({ profile_id: IDS[actor], nid_number: '9999999999' })).error).not.toBeNull()
+  })
+  it('anonymous visitors are refused outright', async () => {
+    as('anon')
+    expect((await raw().from('member_private_details').select('*')).error).not.toBeNull()
+  })
+  it('the public member directory and profile reads never include an NID', async () => {
+    as('anon')
+    expect(JSON.stringify(await listPublicMembers())).not.toContain('1234567890123')
+    as('A')
+    expect(JSON.stringify(await raw().from('profiles').select('*'))).not.toContain('1234567890123')
   })
 })

@@ -413,3 +413,9 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# IBADAT Edge Functions (code in supabase/functions; deploy with `supabase functions deploy <name>`)
+[functions.admin-create-member]
+verify_jwt = true
+[functions.complete-first-login]
+verify_jwt = true

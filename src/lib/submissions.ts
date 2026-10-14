@@ -1,4 +1,5 @@
 import { requireSupabase } from './supabase'
+import { canonicalPhone } from './phone'
 import { normalizePhone, type ContactValues, type JoinValues } from './validation'
 import type { Database } from '../types/database'
 import type { Language } from '../i18n'
@@ -30,7 +31,7 @@ export async function submitApplication(v: JoinValues, language: Language): Prom
   try {
     const args = {
       p_full_name: v.fullName.trim(),
-      p_phone: normalizePhone(v.phone),
+      p_phone: canonicalPhone(v.phone) ?? normalizePhone(v.phone),
       p_email: orNull(v.email),
       p_date_of_birth: orNull(v.dateOfBirth),
       p_occupation: orNull(v.occupation),

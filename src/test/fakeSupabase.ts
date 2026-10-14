@@ -9,6 +9,7 @@ export function makeFakeSupabase(
   tables: Record<string, Row[]> = {},
   rpcHandlers: Record<string, (args: unknown) => { data: unknown; error: unknown }> = {},
   auth?: unknown,
+  fnHandlers: Record<string, (opts: unknown) => { data: unknown; error: unknown }> = {},
 ) {
   const queries: RecordedQuery[] = []
   const from = (table: string) => {
@@ -43,7 +44,8 @@ export function makeFakeSupabase(
   const upload = vi.fn(async () => ({ data: {}, error: null }))
   const remove = vi.fn(async () => ({ data: [], error: null }))
   const storage = { from: vi.fn(() => ({ createSignedUrls, upload, remove })) }
-  return { client: { from, rpc, storage, auth }, queries, rpc, createSignedUrls, upload }
+  const invoke = vi.fn(async (name: string, opts: unknown) => fnHandlers[name]?.(opts) ?? { data: null, error: new Error('function not found') })
+  return { client: { from, rpc, storage, auth, functions: { invoke } }, queries, rpc, createSignedUrls, upload, invoke }
 }
 
 export interface FakeAccount { email: string; password: string; userId: string }

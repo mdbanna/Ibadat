@@ -5,9 +5,9 @@ import { PageContainer } from '../components/layout'
 import { AccessMessage } from '../components/member/AccessMessage'
 import { Button, ButtonLink, Card, FormField, Input, Loading, Notice, SectionHeading } from '../components/ui'
 import { safeNext, useAuth, type SignInOutcome } from '../lib/auth'
-import { normalizeMemberId } from '../lib/memberAuth'
+import { canonicalPhone } from '../lib/phone'
 import { usePageMeta } from '../lib/usePageMeta'
-import { JOIN_PATH } from '../routes'
+import { FIRST_LOGIN_PATH, JOIN_PATH } from '../routes'
 
 type Failure = Extract<SignInOutcome, { ok: false }>['reason']
 
@@ -19,10 +19,10 @@ export default function LoginPage() {
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
 
-  const [memberId, setMemberId] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<{ memberId?: string; password?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; password?: string }>({})
   const [failure, setFailure] = useState<Failure | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [inactive, setInactive] = useState(false)
@@ -38,26 +38,26 @@ export default function LoginPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (submitting) return
-    const errors: { memberId?: string; password?: string } = {}
-    if (!memberId.trim()) errors.memberId = t('validation.required')
-    else if (!normalizeMemberId(memberId)) errors.memberId = t('validation.invalidMemberId')
+    const errors: { phone?: string; password?: string } = {}
+    if (!phone.trim()) errors.phone = t('validation.required')
+    else if (!canonicalPhone(phone)) errors.phone = t('validation.invalidPhone')
     if (!password) errors.password = t('validation.required')
     setFieldErrors(errors)
     setFailure(null)
-    if (errors.memberId || errors.password) {
-      document.querySelector<HTMLElement>(errors.memberId ? 'input[name="username"]' : 'input[name="password"]')?.focus()
+    if (errors.phone || errors.password) {
+      document.querySelector<HTMLElement>(errors.phone ? 'input[name="username"]' : 'input[name="password"]')?.focus()
       return
     }
     setSubmitting(true)
-    const result = await auth.signIn(memberId, password)
+    const result = await auth.signIn(phone, password)
     setSubmitting(false)
     if (!result.ok) { setFailure(result.reason); setPassword(''); return }
-    if (result.access === 'active') navigate(next, { replace: true })
+    if (result.access === 'active') navigate(result.mustChangePassword ? FIRST_LOGIN_PATH : next, { replace: true })
     else setInactive(true)
   }
 
   const failureText: Record<Failure, string> = {
-    invalid_member_id: t('validation.invalidMemberId'),
+    invalid_phone: t('validation.invalidPhone'),
     invalid_credentials: t('login.errInvalid'),
     rate_limited: t('login.errRateLimited'),
     network: t('login.errNetwork'),
@@ -82,17 +82,18 @@ export default function LoginPage() {
             {failure && (
               <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3 font-medium text-danger">{failureText[failure]}</div>
             )}
-            <FormField label={t('forms.memberId')} hint={t('forms.memberIdHint')} required error={fieldErrors.memberId}>
+            <FormField label={t('forms.phone')} hint={t('login.phoneHint')} required error={fieldErrors.phone}>
               {(p) => (
                 <Input
                   {...p}
                   name="username"
+                  type="tel"
+                  inputMode="tel"
                   autoComplete="username"
-                  autoCapitalize="characters"
                   spellCheck={false}
                   dir="ltr"
-                  value={memberId}
-                  onChange={(e) => { setMemberId(e.target.value); if (fieldErrors.memberId) setFieldErrors((f) => ({ ...f, memberId: undefined })) }}
+                  value={phone}
+                  onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors((f) => ({ ...f, phone: undefined })) }}
                 />
               )}
             </FormField>
@@ -130,6 +131,7 @@ export default function LoginPage() {
           <p className="text-muted-strong">{t('login.notMemberBody')}</p>
           <div><ButtonLink to={JOIN_PATH} variant="secondary">{t('nav.apply')}</ButtonLink></div>
         </Card>
+        <Notice title={t('login.firstTimeTitle')}>{t('login.firstTimeBody')}</Notice>
         <p className="text-sm text-muted-strong">{t('login.membersOnly')}</p>
       </div>
     </PageContainer>

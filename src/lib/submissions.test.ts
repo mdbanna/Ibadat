@@ -24,7 +24,7 @@ describe('submitApplication', () => {
     const r = await submitApplication(join, 'bn')
     expect(r).toEqual({ ok: true, value: 'APP-2026-00001' })
     expect(fake.rpc).toHaveBeenCalledWith('submit_membership_application', {
-      p_full_name: 'রহিম উদ্দিন', p_phone: '01712345678', p_email: null, p_date_of_birth: null, p_occupation: 'Teacher',
+      p_full_name: 'রহিম উদ্দিন', p_phone: '+8801712345678', p_email: null, p_date_of_birth: null, p_occupation: 'Teacher',
       p_address_line: null, p_district: 'Dhaka', p_upazila: null, p_motivation: null, p_preferred_language: 'bn', p_consent: true,
     })
   })
